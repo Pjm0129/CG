@@ -20,11 +20,6 @@ namespace StarterAssets
         private void Awake()
         {
             controller = GetComponent<CharacterController>();
-
-            if (controller == null)
-            {
-                Debug.LogError("PlayerDash: CharacterController가 필요합니다.", this);
-            }
         }
 
         private void Update()
