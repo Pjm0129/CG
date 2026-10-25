@@ -1,5 +1,5 @@
+using System;
 using UnityEngine;
-using UnityEngine.SceneManagement;
 using StarterAssets;
 
 public class PlayerHealth : MonoBehaviour
@@ -9,7 +9,6 @@ public class PlayerHealth : MonoBehaviour
 
     [Header("Game Over")]
     [SerializeField] private string lobbySceneName = "Lobby";
-    [SerializeField] private float returnDelay = 2f;
 
     private int currentHP;
     private PlayerDash playerDash;
@@ -18,37 +17,40 @@ public class PlayerHealth : MonoBehaviour
     public int CurrentHP => currentHP;
     public int MaxHP => maxHP;
     public bool IsDead => isDead;
+    public string LobbySceneName => lobbySceneName;
+
+    public event Action<int, int> HealthChanged;
+    public event Action Died;
 
     private void Awake()
     {
+        maxHP = Mathf.Max(1, maxHP);
         currentHP = maxHP;
         playerDash = GetComponent<PlayerDash>();
     }
 
+    private void Start()
+    {
+        GameUI gameUI = GetComponent<GameUI>();
+        if (gameUI == null)
+            gameUI = gameObject.AddComponent<GameUI>();
+
+        gameUI.Initialize(this);
+    }
+
     public void TakeDamage(int damage)
     {
-        if (isDead)
+        if (isDead || damage <= 0)
             return;
 
-        // 대시 중 무적
         if (playerDash != null && playerDash.IsDashing)
-        {
-            Debug.Log("Dash Invincible!");
-            return;
-        }
-
-        if (damage <= 0)
             return;
 
-        currentHP -= damage;
-        currentHP = Mathf.Max(currentHP, 0);
+        currentHP = Mathf.Max(currentHP - damage, 0);
+        HealthChanged?.Invoke(currentHP, maxHP);
 
-        Debug.Log($"Player HP: {currentHP} / {maxHP}");
-
-        if (currentHP <= 0)
-        {
+        if (currentHP == 0)
             Die();
-        }
     }
 
     public void Heal(int amount)
@@ -56,10 +58,8 @@ public class PlayerHealth : MonoBehaviour
         if (isDead || amount <= 0)
             return;
 
-        currentHP += amount;
-        currentHP = Mathf.Min(currentHP, maxHP);
-
-        Debug.Log($"Player HP: {currentHP} / {maxHP}");
+        currentHP += Mathf.Min(amount, maxHP - currentHP);
+        HealthChanged?.Invoke(currentHP, maxHP);
     }
 
     private void Die()
@@ -68,14 +68,6 @@ public class PlayerHealth : MonoBehaviour
             return;
 
         isDead = true;
-
-        Debug.Log("GAME OVER");
-
-        Invoke(nameof(ReturnToLobby), returnDelay);
-    }
-
-    private void ReturnToLobby()
-    {
-        SceneManager.LoadScene(lobbySceneName);
+        Died?.Invoke();
     }
 }
