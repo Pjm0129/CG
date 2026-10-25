@@ -136,7 +136,8 @@ namespace StarterAssets
                 _cinemachineTargetYaw = CinemachineCameraTarget.transform.rotation.eulerAngles.y;
             }
 
-            _hasAnimator = TryGetComponent(out _animator);
+            _animator = GetComponentInChildren<Animator>();
+            _hasAnimator = _animator != null;
             _controller = GetComponent<CharacterController>();
             _input = GetComponent<StarterAssetsInputs>();
             _playerDash = GetComponent<PlayerDash>();
@@ -157,7 +158,8 @@ namespace StarterAssets
 
         private void Update()
         {
-            _hasAnimator = TryGetComponent(out _animator);
+            _animator = GetComponentInChildren<Animator>();
+            _hasAnimator = _animator != null;
 
             JumpAndGravity();
             GroundedCheck();
