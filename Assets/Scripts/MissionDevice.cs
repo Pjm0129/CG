@@ -37,8 +37,6 @@ public class MissionDevice : MonoBehaviour
 
     private void Awake()
     {
-        // Renderer가 부모에 없으면
-        // 자식 모델에서도 자동 검색
         if (deviceRenderer == null)
         {
             deviceRenderer =
@@ -56,9 +54,7 @@ public class MissionDevice : MonoBehaviour
     }
 
 
-    /// <summary>
-    /// MissionManager가 자동으로 연결합니다.
-    /// </summary>
+    // MissionManager 자동 연결
     public void Initialize(
         MissionManager manager)
     {
@@ -67,9 +63,7 @@ public class MissionDevice : MonoBehaviour
     }
 
 
-    /// <summary>
-    /// 새로운 미션 Device로 활성화할 때 초기화
-    /// </summary>
+    // Device를 다시 사용할 때 초기화
     public void ResetDevice()
     {
         chargeTimer = 0f;
@@ -130,12 +124,12 @@ public class MissionDevice : MonoBehaviour
         Vector3 playerPosition =
             player.position;
 
+
         Vector3 devicePosition =
             transform.position;
 
 
-        // 높이는 무시하고
-        // 바닥 거리만 계산
+        // 높이는 무시
         playerPosition.y = 0f;
 
         devicePosition.y = 0f;
@@ -148,7 +142,7 @@ public class MissionDevice : MonoBehaviour
             );
 
 
-        // 점령 구역 안
+        // 점령 범위 내부
         if (distance <= activationRadius)
         {
             chargeTimer +=
@@ -192,8 +186,7 @@ public class MissionDevice : MonoBehaviour
             }
         }
 
-
-        // 구역 밖으로 나가면 점령 초기화
+        // 점령 범위 밖
         else
         {
             chargeTimer = 0f;

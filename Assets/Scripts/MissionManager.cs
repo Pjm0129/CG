@@ -12,29 +12,43 @@ public class MissionManager : MonoBehaviour
     [SerializeField] private float stage3Duration = 30f;
 
     [Header("Device Mission Settings")]
-    [Tooltip("DeviceSpawnPoints 오브젝트를 연결하세요.")]
+    [Tooltip("DeviceSpawnPoints 부모 오브젝트")]
     [SerializeField] private Transform deviceRoot;
 
     [Tooltip("점령해야 하는 Device 개수")]
     [SerializeField] private int requiredDeviceCount = 3;
 
-    [Tooltip("Device 완료 후 다음 Device가 나타나는 시간")]
+    [Tooltip("Device 완료 후 다음 Device가 나타날 때까지 시간")]
     [SerializeField] private float nextDeviceDelay = 1f;
 
     [Header("Exit Settings")]
-    [SerializeField] private Transform exitPoint;
+    [Tooltip("탈출 포탈 후보 4개를 등록하세요.")]
+    [SerializeField] private Transform[] exitPoints;
 
+    [Tooltip("플레이어가 포탈에 접근했을 때 탈출로 인정할 거리")]
     [SerializeField] private float exitRadius = 2f;
+
+
+    // =========================
+    // Player / Stage
+    // =========================
 
     private PlayerHealth playerHealth;
 
     private int currentStage = 1;
+
     private float stageTimer;
 
-    private int activatedDevices;
-
     private bool exitReady;
+
     private bool missionCleared;
+
+
+    // =========================
+    // Device
+    // =========================
+
+    private int activatedDevices;
 
     private readonly List<MissionDevice> devices =
         new List<MissionDevice>();
@@ -46,9 +60,26 @@ public class MissionManager : MonoBehaviour
 
     private Coroutine nextDeviceCoroutine;
 
+
+    // =========================
+    // Exit
+    // =========================
+
+    private Transform activeExitPoint;
+
+
+    // =========================
+    // UI
+    // =========================
+
     private GameObject missionCanvas;
+
     private Text missionText;
 
+
+    // =========================
+    // Properties
+    // =========================
 
     public Transform PlayerTransform => transform;
 
@@ -60,24 +91,33 @@ public class MissionManager : MonoBehaviour
         !missionCleared;
 
 
+    // =========================
+    // Start
+    // =========================
+
     private void Start()
     {
         playerHealth = GetComponent<PlayerHealth>();
 
-        if (exitPoint != null)
-        {
-            exitPoint.gameObject.SetActive(false);
-        }
+        // 모든 Exit 비활성화
+        HideAllExitPoints();
 
+        // Device 검색
         FindMissionDevices();
 
+        // 모든 Device 비활성화
         HideAllDevices();
 
+        // UI 생성
         CreateMissionUI();
 
         UpdateMissionUI();
     }
 
+
+    // =========================
+    // Update
+    // =========================
 
     private void Update()
     {
@@ -89,9 +129,9 @@ public class MissionManager : MonoBehaviour
         }
 
 
-        // ----------------------------
-        // STAGE 1
-        // ----------------------------
+        // ==================================
+        // STAGE 1 : 생존
+        // ==================================
 
         if (currentStage == 1)
         {
@@ -106,9 +146,9 @@ public class MissionManager : MonoBehaviour
         }
 
 
-        // ----------------------------
-        // STAGE 3
-        // ----------------------------
+        // ==================================
+        // STAGE 3 : 생존 후 Exit
+        // ==================================
 
         else if (currentStage == 3)
         {
@@ -122,13 +162,10 @@ public class MissionManager : MonoBehaviour
                 {
                     exitReady = true;
 
-                    if (exitPoint != null)
-                    {
-                        exitPoint.gameObject.SetActive(true);
-                    }
+                    // 4개 Exit 중 랜덤 1개 활성화
+                    ActivateRandomExit();
                 }
             }
-
 
             if (exitReady)
             {
@@ -141,9 +178,9 @@ public class MissionManager : MonoBehaviour
     }
 
 
-    // =====================================================
-    // Device 초기 설정
-    // =====================================================
+    // =========================================================
+    // DEVICE 초기 설정
+    // =========================================================
 
     private void FindMissionDevices()
     {
@@ -153,7 +190,7 @@ public class MissionManager : MonoBehaviour
         if (deviceRoot == null)
         {
             Debug.LogError(
-                "[MissionManager] Device Root가 설정되지 않았습니다.\n" +
+                "[MissionManager] Device Root가 없습니다. " +
                 "Inspector에서 DeviceSpawnPoints를 연결하세요."
             );
 
@@ -162,7 +199,9 @@ public class MissionManager : MonoBehaviour
 
 
         MissionDevice[] foundDevices =
-            deviceRoot.GetComponentsInChildren<MissionDevice>(true);
+            deviceRoot.GetComponentsInChildren<MissionDevice>(
+                true
+            );
 
 
         foreach (MissionDevice device in foundDevices)
@@ -174,23 +213,13 @@ public class MissionManager : MonoBehaviour
 
             devices.Add(device);
 
-            // MissionManager 자동 연결
             device.Initialize(this);
         }
 
 
         Debug.Log(
-            $"[MissionManager] Device {devices.Count}개 발견"
+            $"[MissionManager] Device {devices.Count}개 등록 완료"
         );
-
-
-        if (devices.Count < requiredDeviceCount)
-        {
-            Debug.LogWarning(
-                "[MissionManager] 필요한 Device 수보다 " +
-                "배치된 Device 수가 적습니다."
-            );
-        }
     }
 
 
@@ -208,9 +237,9 @@ public class MissionManager : MonoBehaviour
     }
 
 
-    // =====================================================
-    // STAGE 2 시작
-    // =====================================================
+    // =========================================================
+    // STAGE 2
+    // =========================================================
 
     private void StartStage2()
     {
@@ -224,15 +253,19 @@ public class MissionManager : MonoBehaviour
 
         ActivateRandomDevice();
 
+
         Debug.Log(
             "[MissionManager] STAGE 2 시작"
         );
+
+
+        UpdateMissionUI();
     }
 
 
-    // =====================================================
-    // 랜덤 Device 선택
-    // =====================================================
+    // =========================================================
+    // 랜덤 Device
+    // =========================================================
 
     private void ActivateRandomDevice()
     {
@@ -254,7 +287,7 @@ public class MissionManager : MonoBehaviour
             }
 
 
-            // 이미 완료한 Device는 제외
+            // 이미 완료한 위치는 제외
             if (completedDevices.Contains(
                     device.GetInstanceID()))
             {
@@ -299,9 +332,9 @@ public class MissionManager : MonoBehaviour
     }
 
 
-    // =====================================================
+    // =========================================================
     // Device 점령 완료
-    // =====================================================
+    // =========================================================
 
     public void RegisterActivatedDevice(
         MissionDevice device)
@@ -313,7 +346,7 @@ public class MissionManager : MonoBehaviour
         }
 
 
-        // 현재 활성 Device가 아닌 경우 무시
+        // 현재 선택된 Device만 인정
         if (device != currentDevice)
         {
             return;
@@ -324,7 +357,7 @@ public class MissionManager : MonoBehaviour
             device.GetInstanceID();
 
 
-        // 이미 완료한 Device라면 무시
+        // 중복 완료 방지
         if (!completedDevices.Add(instanceID))
         {
             return;
@@ -335,18 +368,18 @@ public class MissionManager : MonoBehaviour
 
 
         Debug.Log(
-            $"[MissionManager] Device 완료 " +
+            $"[MissionManager] Device 완료 : " +
             $"{activatedDevices} / {requiredDeviceCount}"
         );
 
 
-        // 완료된 Device 숨기기
+        // 완료된 Device 숨김
         device.gameObject.SetActive(false);
 
         currentDevice = null;
 
 
-        // 목표 개수 완료
+        // 필요한 Device 모두 완료
         if (activatedDevices >= requiredDeviceCount)
         {
             StartStage3();
@@ -355,10 +388,12 @@ public class MissionManager : MonoBehaviour
         }
 
 
-        // 다음 랜덤 Device
+        // 다음 Device 생성
         if (nextDeviceCoroutine != null)
         {
-            StopCoroutine(nextDeviceCoroutine);
+            StopCoroutine(
+                nextDeviceCoroutine
+            );
         }
 
 
@@ -395,9 +430,9 @@ public class MissionManager : MonoBehaviour
     }
 
 
-    // =====================================================
+    // =========================================================
     // STAGE 3
-    // =====================================================
+    // =========================================================
 
     private void StartStage3()
     {
@@ -405,7 +440,12 @@ public class MissionManager : MonoBehaviour
 
         stageTimer = 0f;
 
+        exitReady = false;
+
         currentDevice = null;
+
+
+        HideAllDevices();
 
 
         Debug.Log(
@@ -417,13 +457,96 @@ public class MissionManager : MonoBehaviour
     }
 
 
-    // =====================================================
+    // =========================================================
     // EXIT
-    // =====================================================
+    // =========================================================
+
+    private void HideAllExitPoints()
+    {
+        activeExitPoint = null;
+
+
+        if (exitPoints == null)
+        {
+            return;
+        }
+
+
+        foreach (Transform point in exitPoints)
+        {
+            if (point != null)
+            {
+                point.gameObject.SetActive(false);
+            }
+        }
+    }
+
+
+    private void ActivateRandomExit()
+    {
+        if (exitPoints == null ||
+            exitPoints.Length == 0)
+        {
+            Debug.LogError(
+                "[MissionManager] Exit Points가 등록되지 않았습니다."
+            );
+
+            return;
+        }
+
+
+        // 먼저 전부 OFF
+        HideAllExitPoints();
+
+
+        // null이 아닌 Exit만 후보 등록
+        List<Transform> candidates =
+            new List<Transform>();
+
+
+        foreach (Transform point in exitPoints)
+        {
+            if (point != null)
+            {
+                candidates.Add(point);
+            }
+        }
+
+
+        if (candidates.Count == 0)
+        {
+            Debug.LogError(
+                "[MissionManager] 사용 가능한 Exit Point가 없습니다."
+            );
+
+            return;
+        }
+
+
+        int randomIndex =
+            Random.Range(
+                0,
+                candidates.Count
+            );
+
+
+        activeExitPoint =
+            candidates[randomIndex];
+
+
+        activeExitPoint.gameObject.SetActive(true);
+
+
+        Debug.Log(
+            "[MissionManager] 랜덤 Exit 활성화 : " +
+            activeExitPoint.name
+        );
+    }
+
 
     private void CheckExit()
     {
-        if (exitPoint == null)
+        if (activeExitPoint == null)
         {
             return;
         }
@@ -432,10 +555,12 @@ public class MissionManager : MonoBehaviour
         Vector3 playerPosition =
             transform.position;
 
+
         Vector3 exitPosition =
-            exitPoint.position;
+            activeExitPoint.position;
 
 
+        // 높이 무시
         playerPosition.y = 0f;
 
         exitPosition.y = 0f;
@@ -457,6 +582,10 @@ public class MissionManager : MonoBehaviour
     }
 
 
+    // =========================================================
+    // Mission Clear
+    // =========================================================
+
     private void ClearMission()
     {
         if (missionCleared)
@@ -472,7 +601,7 @@ public class MissionManager : MonoBehaviour
         if (gameUI == null)
         {
             Debug.LogError(
-                "GameUI was not found on the player."
+                "[MissionManager] GameUI가 Player에 없습니다."
             );
 
             return;
@@ -481,13 +610,19 @@ public class MissionManager : MonoBehaviour
 
         missionCleared = true;
 
+
+        Debug.Log(
+            "[MissionManager] MISSION CLEAR"
+        );
+
+
         gameUI.ShowMissionClear();
     }
 
 
-    // =====================================================
-    // Mission UI
-    // =====================================================
+    // =========================================================
+    // UI
+    // =========================================================
 
     private void CreateMissionUI()
     {
@@ -503,10 +638,12 @@ public class MissionManager : MonoBehaviour
         Canvas canvas =
             missionCanvas.GetComponent<Canvas>();
 
+
         canvas.renderMode =
             RenderMode.ScreenSpaceOverlay;
 
-        canvas.sortingOrder = 90;
+        canvas.sortingOrder =
+            90;
 
 
         CanvasScaler scaler =
@@ -516,12 +653,21 @@ public class MissionManager : MonoBehaviour
         scaler.uiScaleMode =
             CanvasScaler.ScaleMode.ScaleWithScreenSize;
 
+
         scaler.referenceResolution =
-            new Vector2(1920, 1080);
+            new Vector2(
+                1920,
+                1080
+            );
+
 
         scaler.matchWidthOrHeight =
             0.5f;
 
+
+        // -------------------------
+        // Panel
+        // -------------------------
 
         GameObject panelObject =
             new GameObject(
@@ -541,6 +687,7 @@ public class MissionManager : MonoBehaviour
         Image panelImage =
             panelObject.GetComponent<Image>();
 
+
         panelImage.color =
             new Color(
                 0.035f,
@@ -549,7 +696,9 @@ public class MissionManager : MonoBehaviour
                 0.9f
             );
 
-        panelImage.raycastTarget = false;
+
+        panelImage.raycastTarget =
+            false;
 
 
         RectTransform panelRect =
@@ -562,11 +711,13 @@ public class MissionManager : MonoBehaviour
                 1f
             );
 
+
         panelRect.anchorMax =
             new Vector2(
                 0.5f,
                 1f
             );
+
 
         panelRect.pivot =
             new Vector2(
@@ -574,11 +725,13 @@ public class MissionManager : MonoBehaviour
                 1f
             );
 
+
         panelRect.anchoredPosition =
             new Vector2(
                 0f,
                 -36f
             );
+
 
         panelRect.sizeDelta =
             new Vector2(
@@ -586,6 +739,10 @@ public class MissionManager : MonoBehaviour
                 126f
             );
 
+
+        // -------------------------
+        // Text
+        // -------------------------
 
         GameObject textObject =
             new GameObject(
@@ -612,13 +769,17 @@ public class MissionManager : MonoBehaviour
             );
 
 
-        missionText.fontSize = 30;
+        missionText.fontSize =
+            30;
+
 
         missionText.alignment =
             TextAnchor.MiddleCenter;
 
+
         missionText.color =
             Color.white;
+
 
         missionText.raycastTarget =
             false;
@@ -631,14 +792,17 @@ public class MissionManager : MonoBehaviour
         textRect.anchorMin =
             Vector2.zero;
 
+
         textRect.anchorMax =
             Vector2.one;
+
 
         textRect.offsetMin =
             new Vector2(
                 20f,
                 10f
             );
+
 
         textRect.offsetMax =
             new Vector2(
@@ -648,6 +812,10 @@ public class MissionManager : MonoBehaviour
     }
 
 
+    // =========================================================
+    // UI 갱신
+    // =========================================================
+
     private void UpdateMissionUI()
     {
         if (missionText == null)
@@ -656,6 +824,7 @@ public class MissionManager : MonoBehaviour
         }
 
 
+        // STAGE 1
         if (currentStage == 1)
         {
             int seconds =
@@ -676,6 +845,7 @@ public class MissionManager : MonoBehaviour
         }
 
 
+        // STAGE 2
         else if (currentStage == 2)
         {
             missionText.text =
@@ -687,6 +857,7 @@ public class MissionManager : MonoBehaviour
         }
 
 
+        // STAGE 3
         else if (currentStage == 3)
         {
             if (!exitReady)
@@ -707,16 +878,19 @@ public class MissionManager : MonoBehaviour
                     seconds +
                     "s";
             }
-
             else
             {
                 missionText.text =
                     "EXIT OPEN\n" +
-                    "REACH THE GREEN EXIT";
+                    "REACH THE PORTAL";
             }
         }
     }
 
+
+    // =========================================================
+    // Destroy
+    // =========================================================
 
     private void OnDestroy()
     {
