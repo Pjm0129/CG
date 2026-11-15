@@ -14,6 +14,7 @@ GameObject:
   - component: {fileID: 330285185131885619}
   - component: {fileID: 4082068844833421052}
   - component: {fileID: 4288443532275993156}
+  - component: {fileID: 2205551933353361436}
   m_Layer: 0
   m_Name: Bullet
   m_TagString: Untagged
@@ -157,6 +158,20 @@ MonoBehaviour:
   speed: 6
   lifeTime: 5
   damage: 1
+--- !u!114 &2205551933353361436
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1954306220889076003}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2bbe086b5ffde3c408c1124593817b67, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BulletVisual
+  renderers: []
+  particleSystems: []
 --- !u!1 &2680059128152075598
 GameObject:
   m_ObjectHideFlags: 0

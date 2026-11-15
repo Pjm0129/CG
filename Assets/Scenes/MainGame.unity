@@ -914,8 +914,14 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::BulletSpawner
   bulletPrefab: {fileID: 4288443532275993156, guid: 06a8e0185059fc74c8a754881f8e984e, type: 3}
   player: {fileID: 3893294197879345259, guid: 64dce48905ffd9b4293e595fa6941544, type: 3}
+  autoFire: 0
   spawnInterval: 1
+  randomPattern: 1
+  preventSamePattern: 1
   firePattern: 1
+  singleMaterial: {fileID: 2100000, guid: 9d59fd0bb2aa4e248b8cd728c1241ae9, type: 2}
+  spreadMaterial: {fileID: 2100000, guid: 90fdf22600e9cb540ba8f74e1da8849d, type: 2}
+  radialMaterial: {fileID: 2100000, guid: 88b91588f4f78d9418817c961e5fe448, type: 2}
   spreadBulletCount: 5
   spreadAngle: 45
   radialBulletCount: 12
@@ -1304,8 +1310,14 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::BulletSpawner
   bulletPrefab: {fileID: 4288443532275993156, guid: 06a8e0185059fc74c8a754881f8e984e, type: 3}
   player: {fileID: 3893294197879345259, guid: 64dce48905ffd9b4293e595fa6941544, type: 3}
+  autoFire: 0
   spawnInterval: 1
+  randomPattern: 1
+  preventSamePattern: 1
   firePattern: 2
+  singleMaterial: {fileID: 2100000, guid: 9d59fd0bb2aa4e248b8cd728c1241ae9, type: 2}
+  spreadMaterial: {fileID: 2100000, guid: 90fdf22600e9cb540ba8f74e1da8849d, type: 2}
+  radialMaterial: {fileID: 2100000, guid: 88b91588f4f78d9418817c961e5fe448, type: 2}
   spreadBulletCount: 5
   spreadAngle: 45
   radialBulletCount: 12
@@ -2410,8 +2422,14 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::BulletSpawner
   bulletPrefab: {fileID: 4288443532275993156, guid: 06a8e0185059fc74c8a754881f8e984e, type: 3}
   player: {fileID: 3893294197879345259, guid: 64dce48905ffd9b4293e595fa6941544, type: 3}
+  autoFire: 0
   spawnInterval: 1
+  randomPattern: 1
+  preventSamePattern: 1
   firePattern: 2
+  singleMaterial: {fileID: 2100000, guid: 9d59fd0bb2aa4e248b8cd728c1241ae9, type: 2}
+  spreadMaterial: {fileID: 2100000, guid: 90fdf22600e9cb540ba8f74e1da8849d, type: 2}
+  radialMaterial: {fileID: 2100000, guid: 88b91588f4f78d9418817c961e5fe448, type: 2}
   spreadBulletCount: 5
   spreadAngle: 45
   radialBulletCount: 12
@@ -2481,6 +2499,60 @@ Transform:
   m_Children:
   - {fileID: 749840572}
   m_Father: {fileID: 1097816958}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &1485572655
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1485572657}
+  - component: {fileID: 1485572656}
+  m_Layer: 0
+  m_Name: TurretFireManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1485572656
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1485572655}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d8326b191bb191b4fbd9bb42840904a2, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::TurretFireManager
+  spawners:
+  - {fileID: 1740470147}
+  - {fileID: 1298980059}
+  - {fileID: 749840573}
+  - {fileID: 494994531}
+  minFireCount: 2
+  maxFireCount: 3
+  minInterval: 0.8
+  maxInterval: 1.5
+  startDelay: 1
+--- !u!4 &1485572657
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1485572655}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -8.8725, y: 0.33, z: -7.87774}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!4 &1586285107 stripped
 Transform:
@@ -2919,8 +2991,14 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::BulletSpawner
   bulletPrefab: {fileID: 4288443532275993156, guid: 06a8e0185059fc74c8a754881f8e984e, type: 3}
   player: {fileID: 3893294197879345259, guid: 64dce48905ffd9b4293e595fa6941544, type: 3}
+  autoFire: 0
   spawnInterval: 1
+  randomPattern: 1
+  preventSamePattern: 1
   firePattern: 0
+  singleMaterial: {fileID: 2100000, guid: 9d59fd0bb2aa4e248b8cd728c1241ae9, type: 2}
+  spreadMaterial: {fileID: 2100000, guid: 90fdf22600e9cb540ba8f74e1da8849d, type: 2}
+  radialMaterial: {fileID: 2100000, guid: 88b91588f4f78d9418817c961e5fe448, type: 2}
   spreadBulletCount: 5
   spreadAngle: 45
   radialBulletCount: 12
@@ -3536,6 +3614,7 @@ SceneRoots:
   - {fileID: 91397057}
   - {fileID: 94749955}
   - {fileID: 1660329422}
+  - {fileID: 1485572657}
   - {fileID: 1452652958}
   - {fileID: 697701886}
   - {fileID: 333981687}
