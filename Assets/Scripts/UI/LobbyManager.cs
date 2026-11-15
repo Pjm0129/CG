@@ -1,33 +1,39 @@
 using UnityEngine;
 using UnityEngine.SceneManagement;
-using UnityEngine.InputSystem;
 
 public class LobbyManager : MonoBehaviour
 {
-    private bool isStarting = false;
+    [Header("Scene Settings")]
+    [SerializeField] private string mainGameSceneName = "MainGame";
 
-    private void Update()
+    private bool isLoading;
+
+    /// <summary>
+    /// PRESS START 버튼에서만 호출합니다.
+    /// 화면 클릭이나 다른 UI 클릭으로는 게임이 시작되지 않습니다.
+    /// </summary>
+    public void StartGame()
     {
-        if (isStarting)
+        if (isLoading)
             return;
 
-        bool mouseClicked =
-            Mouse.current != null &&
-            Mouse.current.leftButton.wasPressedThisFrame;
+        isLoading = true;
 
-        bool keyPressed =
-            Keyboard.current != null &&
-            Keyboard.current.anyKey.wasPressedThisFrame;
+        // 설정창 등이 열려있더라도 정상적인 시간 상태로 시작
+        Time.timeScale = 1f;
 
-        if (mouseClicked || keyPressed)
-        {
-            StartGame();
-        }
+        SceneManager.LoadScene(mainGameSceneName);
     }
 
-    private void StartGame()
+    /// <summary>
+    /// 필요할 경우 종료 버튼에서 사용합니다.
+    /// </summary>
+    public void QuitGame()
     {
-        isStarting = true;
-        SceneManager.LoadScene("MainGame");
+#if UNITY_EDITOR
+        Debug.Log("Quit Game");
+#else
+        Application.Quit();
+#endif
     }
 }
