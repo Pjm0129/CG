@@ -2342,8 +2342,8 @@ MonoBehaviour:
     timeLimit: 35
   - requiredDevices: 7
     timeLimit: 40
-  turretFireManager: {fileID: 1485572656}
-  hazardZoneManager: {fileID: 1583483772}
+  turretFireManager: {fileID: 0}
+  hazardZoneManager: {fileID: 0}
   timeoutDamage: 1
   penaltyMessageDuration: 1
   levelTransitionDuration: 1.5
