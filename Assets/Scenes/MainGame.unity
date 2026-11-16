@@ -4224,11 +4224,14 @@ MonoBehaviour:
   spawnPointRoot: {fileID: 21796200}
   speedItemPrefab: {fileID: 7370043300670028658, guid: 19b7e95a091652640b4df605bec6a161, type: 3}
   healItemPrefab: {fileID: 621584630249350254, guid: af9d1131c788d454fa7dae4544fa99d2, type: 3}
+  shieldItemPrefab: {fileID: 8475833574052523601, guid: a1614f0cf649e3a4e894d20bda9008e7, type: 3}
   minSpawnInterval: 8
   maxSpawnInterval: 15
   maxActiveItems: 2
   spawnHeightOffset: 1
   speedItemChance: 0.5
+  healItemChance: 0.4
+  shieldItemChance: 0.3
 --- !u!4 &1622172484
 Transform:
   m_ObjectHideFlags: 0
