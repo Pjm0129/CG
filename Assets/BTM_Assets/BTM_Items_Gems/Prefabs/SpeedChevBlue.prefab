@@ -122,8 +122,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 91cc30de2950c7146ad408a8431108d7, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PickupItem
-  itemType: 0
+  itemType: 1
   pickupRadius: 1.5
   healAmount: 1
   speedMultiplier: 1.5
   speedDuration: 5
+  reflectDuration: 5
