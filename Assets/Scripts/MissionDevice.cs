@@ -3,16 +3,18 @@ using UnityEngine;
 public class MissionDevice : MonoBehaviour
 {
     [Header("References")]
-    [SerializeField] private MissionManager missionManager;
+    [SerializeField]
+    private MissionManager missionManager;
 
-    [SerializeField] private Renderer deviceRenderer;
-
+    [SerializeField]
+    private Renderer deviceRenderer;
 
     [Header("Activation Settings")]
-    [SerializeField] private float activationRadius = 2f;
+    [SerializeField]
+    private float activationRadius = 2f;
 
-    [SerializeField] private float activationTime = 2f;
-
+    [SerializeField]
+    private float activationTime = 2f;
 
     [Header("Colors")]
     [SerializeField]
@@ -27,81 +29,54 @@ public class MissionDevice : MonoBehaviour
     private Color activatedColor =
         Color.green;
 
-
     private float chargeTimer;
 
     private bool activated;
 
-    private MaterialPropertyBlock colorBlock;
+    private bool availableForLevel =
+        true;
 
+    private MaterialPropertyBlock
+        colorBlock;
+
+    // =====================================================
+    // UNITY
+    // =====================================================
 
     private void Awake()
     {
         if (deviceRenderer == null)
         {
             deviceRenderer =
-                GetComponentInChildren<Renderer>(
-                    true
-                );
+                GetComponent<Renderer>();
         }
-
 
         colorBlock =
             new MaterialPropertyBlock();
-
-
-        ResetDevice();
-    }
-
-
-    // MissionManager 자동 연결
-    public void Initialize(
-        MissionManager manager)
-    {
-        missionManager =
-            manager;
-    }
-
-
-    // Device를 다시 사용할 때 초기화
-    public void ResetDevice()
-    {
-        chargeTimer = 0f;
-
-        activated = false;
-
-
-        if (colorBlock == null)
-        {
-            colorBlock =
-                new MaterialPropertyBlock();
-        }
-
 
         SetColor(
             idleColor
         );
     }
 
-
-    private void OnEnable()
-    {
-        ResetDevice();
-    }
-
-
     private void Update()
     {
-        if (activated ||
-            missionManager == null)
+        if (
+            !availableForLevel ||
+            activated ||
+            missionManager == null
+        )
         {
             return;
         }
 
-
-        if (!missionManager.CanActivateDevices)
+        if (
+            !missionManager
+                .CanActivateDevices
+        )
         {
-            chargeTimer = 0f;
+            chargeTimer =
+                0f;
 
             SetColor(
                 idleColor
@@ -110,30 +85,24 @@ public class MissionDevice : MonoBehaviour
             return;
         }
 
+        Transform playerTransform =
+            missionManager
+                .PlayerTransform;
 
-        Transform player =
-            missionManager.PlayerTransform;
-
-
-        if (player == null)
-        {
+        if (playerTransform == null)
             return;
-        }
-
 
         Vector3 playerPosition =
-            player.position;
-
+            playerTransform.position;
 
         Vector3 devicePosition =
             transform.position;
 
+        playerPosition.y =
+            0f;
 
-        // 높이는 무시
-        playerPosition.y = 0f;
-
-        devicePosition.y = 0f;
-
+        devicePosition.y =
+            0f;
 
         float distance =
             Vector3.Distance(
@@ -141,13 +110,13 @@ public class MissionDevice : MonoBehaviour
                 devicePosition
             );
 
-
-        // 점령 범위 내부
-        if (distance <= activationRadius)
+        if (
+            distance <=
+            activationRadius
+        )
         {
             chargeTimer +=
                 Time.deltaTime;
-
 
             float progress =
                 Mathf.Clamp01(
@@ -158,7 +127,6 @@ public class MissionDevice : MonoBehaviour
                     )
                 );
 
-
             SetColor(
                 Color.Lerp(
                     chargingColor,
@@ -167,30 +135,18 @@ public class MissionDevice : MonoBehaviour
                 )
             );
 
-
-            // 점령 완료
-            if (progress >= 1f)
+            if (
+                progress >=
+                1f
+            )
             {
-                activated = true;
-
-
-                SetColor(
-                    activatedColor
-                );
-
-
-                missionManager
-                    .RegisterActivatedDevice(
-                        this
-                    );
+                ActivateDevice();
             }
         }
-
-        // 점령 범위 밖
         else
         {
-            chargeTimer = 0f;
-
+            chargeTimer =
+                0f;
 
             SetColor(
                 idleColor
@@ -198,44 +154,139 @@ public class MissionDevice : MonoBehaviour
         }
     }
 
+    // =====================================================
+    // SET MANAGER
+    // =====================================================
+
+    public void SetMissionManager(
+        MissionManager manager)
+    {
+        missionManager =
+            manager;
+    }
+
+    // =====================================================
+    // LEVEL CONTROL
+    // =====================================================
+
+    public void SetAvailableForLevel(
+        bool available)
+    {
+        availableForLevel =
+            available;
+
+        chargeTimer =
+            0f;
+
+        activated =
+            false;
+
+        gameObject.SetActive(
+            available
+        );
+
+        if (available)
+        {
+            SetColor(
+                idleColor
+            );
+        }
+    }
+
+    public void ResetDevice()
+    {
+        chargeTimer =
+            0f;
+
+        activated =
+            false;
+
+        availableForLevel =
+            true;
+
+        SetColor(
+            idleColor
+        );
+    }
+
+    // =====================================================
+    // ACTIVATE
+    // =====================================================
+
+    private void ActivateDevice()
+    {
+        if (
+            activated ||
+            !availableForLevel
+        )
+        {
+            return;
+        }
+
+        activated =
+            true;
+
+        chargeTimer =
+            activationTime;
+
+        SetColor(
+            activatedColor
+        );
+
+        if (
+            missionManager != null
+        )
+        {
+            missionManager
+                .RegisterActivatedDevice(
+                    this
+                );
+        }
+    }
+
+    // =====================================================
+    // COLOR
+    // =====================================================
 
     private void SetColor(
         Color color)
     {
         if (deviceRenderer == null)
-        {
             return;
-        }
 
+        if (colorBlock == null)
+        {
+            colorBlock =
+                new MaterialPropertyBlock();
+        }
 
         deviceRenderer.GetPropertyBlock(
             colorBlock
         );
-
 
         colorBlock.SetColor(
             "_BaseColor",
             color
         );
 
-
         colorBlock.SetColor(
             "_Color",
             color
         );
-
 
         deviceRenderer.SetPropertyBlock(
             colorBlock
         );
     }
 
+    // =====================================================
+    // GIZMO
+    // =====================================================
 
     private void OnDrawGizmosSelected()
     {
         Gizmos.color =
             Color.yellow;
-
 
         Gizmos.DrawWireSphere(
             transform.position,

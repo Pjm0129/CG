@@ -7,564 +7,687 @@ using UnityEngine.UI;
 [RequireComponent(typeof(PlayerHealth))]
 public class MissionManager : MonoBehaviour
 {
-    [Header("Stage Settings")]
-    [SerializeField] private float stage1Duration = 20f;
-    [SerializeField] private float stage3Duration = 30f;
+    [System.Serializable]
+    public class LevelSettings
+    {
+        [Header("Level")]
+        public int requiredDevices = 3;
 
-    [Header("Device Mission Settings")]
-    [Tooltip("DeviceSpawnPoints 부모 오브젝트")]
-    [SerializeField] private Transform deviceRoot;
+        [Tooltip("이 레벨에서 Device를 모두 활성화해야 하는 제한시간")]
+        public float timeLimit = 30f;
+    }
 
-    [Tooltip("점령해야 하는 Device 개수")]
-    [SerializeField] private int requiredDeviceCount = 3;
+    [Header("Level Settings")]
+    [SerializeField]
+    private List<LevelSettings> levels =
+        new List<LevelSettings>()
+        {
+            new LevelSettings
+            {
+                requiredDevices = 3,
+                timeLimit = 30f
+            },
 
-    [Tooltip("Device 완료 후 다음 Device가 나타날 때까지 시간")]
-    [SerializeField] private float nextDeviceDelay = 1f;
+            new LevelSettings
+            {
+                requiredDevices = 5,
+                timeLimit = 35f
+            },
+
+            new LevelSettings
+            {
+                requiredDevices = 7,
+                timeLimit = 40f
+            }
+        };
+
+    [Header("Timeout Penalty")]
+    [SerializeField]
+    private int timeoutDamage = 1;
+
+    [SerializeField]
+    private float penaltyMessageDuration = 1f;
+
+    [Header("Level Transition")]
+    [SerializeField]
+    private float levelTransitionDuration = 1.5f;
 
     [Header("Exit Settings")]
-    [Tooltip("탈출 포탈 후보 4개를 등록하세요.")]
-    [SerializeField] private Transform[] exitPoints;
+    [Tooltip("여러 포털을 자식으로 가지고 있는 ExitPoint 부모 오브젝트")]
+    [SerializeField]
+    private Transform exitPoint;
 
-    [Tooltip("플레이어가 포탈에 접근했을 때 탈출로 인정할 거리")]
-    [SerializeField] private float exitRadius = 2f;
+    [SerializeField]
+    private float exitRadius = 2f;
 
-
-    // =========================
-    // Player / Stage
-    // =========================
+    [Header("Device Settings")]
+    [Tooltip("비워두면 Scene에 있는 MissionDevice를 자동으로 찾습니다.")]
+    [SerializeField]
+    private List<MissionDevice> devices =
+        new List<MissionDevice>();
 
     private PlayerHealth playerHealth;
 
-    private int currentStage = 1;
-
-    private float stageTimer;
-
-    private bool exitReady;
-
-    private bool missionCleared;
-
-
-    // =========================
-    // Device
-    // =========================
-
+    private int currentLevelIndex;
     private int activatedDevices;
 
-    private readonly List<MissionDevice> devices =
-        new List<MissionDevice>();
+    private float levelTimer;
 
-    private readonly HashSet<int> completedDevices =
-        new HashSet<int>();
+    private bool missionCleared;
+    private bool exitReady;
+    private bool levelTransitioning;
+    private bool penaltyActive;
 
-    private MissionDevice currentDevice;
+    private readonly HashSet<int>
+        completedDevices =
+            new HashSet<int>();
 
-    private Coroutine nextDeviceCoroutine;
+    private readonly List<MissionDevice>
+        currentLevelDevices =
+            new List<MissionDevice>();
 
+    private readonly List<Transform>
+        exitPortals =
+            new List<Transform>();
 
-    // =========================
-    // Exit
-    // =========================
-
-    private Transform activeExitPoint;
-
-
-    // =========================
-    // UI
-    // =========================
+    private Transform activeExitPortal;
 
     private GameObject missionCanvas;
-
     private Text missionText;
 
-
-    // =========================
-    // Properties
-    // =========================
+    // =====================================================
+    // PUBLIC
+    // =====================================================
 
     public Transform PlayerTransform => transform;
 
-
     public bool CanActivateDevices =>
-        currentStage == 2 &&
+        !missionCleared &&
+        !exitReady &&
+        !levelTransitioning &&
+        !penaltyActive &&
         playerHealth != null &&
-        !playerHealth.IsDead &&
-        !missionCleared;
+        !playerHealth.IsDead;
 
+    public int CurrentLevel =>
+        currentLevelIndex + 1;
 
-    // =========================
-    // Start
-    // =========================
+    public float RemainingTime =>
+        GetCurrentTimeLimit() -
+        levelTimer;
+
+    // =====================================================
+    // START
+    // =====================================================
 
     private void Start()
     {
-        playerHealth = GetComponent<PlayerHealth>();
+        playerHealth =
+            GetComponent<PlayerHealth>();
 
-        // 모든 Exit 비활성화
-        HideAllExitPoints();
+        SetupExitPortals();
 
-        // Device 검색
-        FindMissionDevices();
+        FindDevices();
 
-        // 모든 Device 비활성화
-        HideAllDevices();
-
-        // UI 생성
         CreateMissionUI();
 
-        UpdateMissionUI();
+        StartLevel(0);
     }
 
-
-    // =========================
-    // Update
-    // =========================
+    // =====================================================
+    // UPDATE
+    // =====================================================
 
     private void Update()
     {
-        if (playerHealth == null ||
+        if (
+            playerHealth == null ||
             playerHealth.IsDead ||
-            missionCleared)
+            missionCleared
+        )
         {
             return;
         }
 
-
-        // ==================================
-        // STAGE 1 : 생존
-        // ==================================
-
-        if (currentStage == 1)
+        if (exitReady)
         {
-            stageTimer += Time.deltaTime;
+            CheckExit();
 
-            if (stageTimer >= Mathf.Max(
-                    0.1f,
-                    stage1Duration))
-            {
-                StartStage2();
-            }
+            UpdateMissionUI();
+
+            return;
         }
 
-
-        // ==================================
-        // STAGE 3 : 생존 후 Exit
-        // ==================================
-
-        else if (currentStage == 3)
+        if (
+            levelTransitioning ||
+            penaltyActive
+        )
         {
-            if (!exitReady)
-            {
-                stageTimer += Time.deltaTime;
-
-                if (stageTimer >= Mathf.Max(
-                        0.1f,
-                        stage3Duration))
-                {
-                    exitReady = true;
-
-                    // 4개 Exit 중 랜덤 1개 활성화
-                    ActivateRandomExit();
-                }
-            }
-
-            if (exitReady)
-            {
-                CheckExit();
-            }
+            return;
         }
 
+        levelTimer +=
+            Time.deltaTime;
+
+        if (
+            levelTimer >=
+            GetCurrentTimeLimit()
+        )
+        {
+            StartCoroutine(
+                TimeoutPenaltyRoutine()
+            );
+
+            return;
+        }
 
         UpdateMissionUI();
     }
 
+    // =====================================================
+    // EXIT PORTAL SETUP
+    // =====================================================
 
-    // =========================================================
-    // DEVICE 초기 설정
-    // =========================================================
-
-    private void FindMissionDevices()
+    private void SetupExitPortals()
     {
-        devices.Clear();
+        exitPortals.Clear();
 
+        activeExitPortal =
+            null;
 
-        if (deviceRoot == null)
+        if (exitPoint == null)
         {
-            Debug.LogError(
-                "[MissionManager] Device Root가 없습니다. " +
-                "Inspector에서 DeviceSpawnPoints를 연결하세요."
+            Debug.LogWarning(
+                "[MissionManager] ExitPoint가 연결되지 않았습니다."
             );
 
             return;
         }
 
+        // 부모는 활성화 상태로 유지
+        // 실제 포털 자식들만 꺼둔다.
+        exitPoint.gameObject.SetActive(
+            true
+        );
 
-        MissionDevice[] foundDevices =
-            deviceRoot.GetComponentsInChildren<MissionDevice>(
-                true
+        for (
+            int i = 0;
+            i < exitPoint.childCount;
+            i++
+        )
+        {
+            Transform portal =
+                exitPoint.GetChild(i);
+
+            if (portal == null)
+                continue;
+
+            exitPortals.Add(
+                portal
             );
 
-
-        foreach (MissionDevice device in foundDevices)
-        {
-            if (device == null)
-            {
-                continue;
-            }
-
-            devices.Add(device);
-
-            device.Initialize(this);
+            portal.gameObject.SetActive(
+                false
+            );
         }
 
-
         Debug.Log(
-            $"[MissionManager] Device {devices.Count}개 등록 완료"
+            $"[MissionManager] Exit Portal {exitPortals.Count}개 등록"
         );
     }
 
+    // =====================================================
+    // FIND DEVICES
+    // =====================================================
 
-    private void HideAllDevices()
+    private void FindDevices()
     {
-        foreach (MissionDevice device in devices)
+        if (
+            devices != null &&
+            devices.Count > 0
+        )
         {
-            if (device != null)
-            {
-                device.gameObject.SetActive(false);
-            }
+            SetupDeviceReferences();
+
+            return;
         }
 
-        currentDevice = null;
+        devices =
+            new List<MissionDevice>(
+                FindObjectsByType<MissionDevice>(
+                    FindObjectsSortMode.None
+                )
+            );
+
+        SetupDeviceReferences();
+
+        Debug.Log(
+            $"[MissionManager] Device {devices.Count}개 발견"
+        );
     }
 
-
-    // =========================================================
-    // STAGE 2
-    // =========================================================
-
-    private void StartStage2()
+    private void SetupDeviceReferences()
     {
-        currentStage = 2;
+        for (
+            int i = 0;
+            i < devices.Count;
+            i++
+        )
+        {
+            if (devices[i] == null)
+                continue;
 
-        stageTimer = 0f;
+            devices[i].SetMissionManager(
+                this
+            );
+        }
+    }
 
-        activatedDevices = 0;
+    // =====================================================
+    // START LEVEL
+    // =====================================================
+
+    private void StartLevel(
+        int levelIndex)
+    {
+        if (
+            levels == null ||
+            levels.Count == 0
+        )
+        {
+            Debug.LogError(
+                "[MissionManager] Level Settings가 없습니다."
+            );
+
+            return;
+        }
+
+        currentLevelIndex =
+            Mathf.Clamp(
+                levelIndex,
+                0,
+                levels.Count - 1
+            );
+
+        activatedDevices =
+            0;
+
+        levelTimer =
+            0f;
 
         completedDevices.Clear();
 
-        ActivateRandomDevice();
-
-
-        Debug.Log(
-            "[MissionManager] STAGE 2 시작"
-        );
-
+        SelectDevicesForCurrentLevel();
 
         UpdateMissionUI();
-    }
-
-
-    // =========================================================
-    // 랜덤 Device
-    // =========================================================
-
-    private void ActivateRandomDevice()
-    {
-        if (currentStage != 2)
-        {
-            return;
-        }
-
-
-        List<MissionDevice> candidates =
-            new List<MissionDevice>();
-
-
-        foreach (MissionDevice device in devices)
-        {
-            if (device == null)
-            {
-                continue;
-            }
-
-
-            // 이미 완료한 위치는 제외
-            if (completedDevices.Contains(
-                    device.GetInstanceID()))
-            {
-                continue;
-            }
-
-
-            candidates.Add(device);
-        }
-
-
-        if (candidates.Count == 0)
-        {
-            Debug.LogWarning(
-                "[MissionManager] 활성화 가능한 Device가 없습니다."
-            );
-
-            return;
-        }
-
-
-        int randomIndex =
-            Random.Range(
-                0,
-                candidates.Count
-            );
-
-
-        currentDevice =
-            candidates[randomIndex];
-
-
-        currentDevice.ResetDevice();
-
-        currentDevice.gameObject.SetActive(true);
-
 
         Debug.Log(
-            "[MissionManager] 랜덤 Device 활성화 : " +
-            currentDevice.name
+            $"[MissionManager] LEVEL {CurrentLevel} 시작 / " +
+            $"Device {GetRequiredDeviceCount()}개 / " +
+            $"{GetCurrentTimeLimit()}초"
         );
     }
 
+    // =====================================================
+    // DEVICE SELECTION
+    // =====================================================
 
-    // =========================================================
-    // Device 점령 완료
-    // =========================================================
+    private void SelectDevicesForCurrentLevel()
+    {
+        currentLevelDevices.Clear();
+
+        List<MissionDevice> available =
+            new List<MissionDevice>();
+
+        for (
+            int i = 0;
+            i < devices.Count;
+            i++
+        )
+        {
+            MissionDevice device =
+                devices[i];
+
+            if (device == null)
+                continue;
+
+            device.gameObject.SetActive(
+                true
+            );
+
+            device.ResetDevice();
+
+            available.Add(
+                device
+            );
+        }
+
+        Shuffle(
+            available
+        );
+
+        int requiredCount =
+            Mathf.Min(
+                GetRequiredDeviceCount(),
+                available.Count
+            );
+
+        if (
+            requiredCount <
+            GetRequiredDeviceCount()
+        )
+        {
+            Debug.LogWarning(
+                $"[MissionManager] 필요한 Device는 " +
+                $"{GetRequiredDeviceCount()}개이지만 " +
+                $"Scene에는 {available.Count}개만 있습니다."
+            );
+        }
+
+        for (
+            int i = 0;
+            i < available.Count;
+            i++
+        )
+        {
+            bool selected =
+                i < requiredCount;
+
+            available[i]
+                .SetAvailableForLevel(
+                    selected
+                );
+
+            if (selected)
+            {
+                currentLevelDevices.Add(
+                    available[i]
+                );
+            }
+        }
+    }
+
+    // =====================================================
+    // DEVICE ACTIVATION
+    // =====================================================
 
     public void RegisterActivatedDevice(
         MissionDevice device)
     {
-        if (!CanActivateDevices ||
-            device == null)
+        if (
+            !CanActivateDevices ||
+            device == null
+        )
         {
             return;
         }
 
-
-        // 현재 선택된 Device만 인정
-        if (device != currentDevice)
+        if (
+            !currentLevelDevices.Contains(
+                device
+            )
+        )
         {
             return;
         }
 
-
-        int instanceID =
-            device.GetInstanceID();
-
-
-        // 중복 완료 방지
-        if (!completedDevices.Add(instanceID))
+        if (
+            !completedDevices.Add(
+                device.GetInstanceID()
+            )
+        )
         {
             return;
         }
-
 
         activatedDevices++;
 
-
         Debug.Log(
-            $"[MissionManager] Device 완료 : " +
-            $"{activatedDevices} / {requiredDeviceCount}"
+            $"[MissionManager] LEVEL {CurrentLevel} " +
+            $"Device {activatedDevices} / " +
+            $"{GetRequiredDeviceCount()}"
         );
 
-
-        // 완료된 Device 숨김
-        device.gameObject.SetActive(false);
-
-        currentDevice = null;
-
-
-        // 필요한 Device 모두 완료
-        if (activatedDevices >= requiredDeviceCount)
+        if (
+            activatedDevices >=
+            GetRequiredDeviceCount()
+        )
         {
-            StartStage3();
-
-            return;
-        }
-
-
-        // 다음 Device 생성
-        if (nextDeviceCoroutine != null)
-        {
-            StopCoroutine(
-                nextDeviceCoroutine
-            );
-        }
-
-
-        nextDeviceCoroutine =
             StartCoroutine(
-                SpawnNextDeviceRoutine()
+                CompleteLevelRoutine()
             );
-
+        }
 
         UpdateMissionUI();
     }
 
+    // =====================================================
+    // LEVEL COMPLETE
+    // =====================================================
 
-    private IEnumerator SpawnNextDeviceRoutine()
+    private IEnumerator CompleteLevelRoutine()
     {
+        if (levelTransitioning)
+            yield break;
+
+        levelTransitioning =
+            true;
+
+        if (missionText != null)
+        {
+            missionText.color =
+                Color.white;
+
+            missionText.text =
+                $"LEVEL {CurrentLevel} COMPLETE";
+        }
+
         yield return new WaitForSeconds(
-            Mathf.Max(
-                0f,
-                nextDeviceDelay
-            )
+            levelTransitionDuration
         );
 
+        int nextLevelIndex =
+            currentLevelIndex + 1;
 
-        if (currentStage == 2 &&
-            !missionCleared &&
-            playerHealth != null &&
-            !playerHealth.IsDead)
+        if (
+            nextLevelIndex <
+            levels.Count
+        )
         {
-            ActivateRandomDevice();
+            levelTransitioning =
+                false;
+
+            StartLevel(
+                nextLevelIndex
+            );
         }
+        else
+        {
+            levelTransitioning =
+                false;
 
-
-        nextDeviceCoroutine = null;
+            OpenRandomExit();
+        }
     }
 
+    // =====================================================
+    // TIMEOUT
+    // =====================================================
 
-    // =========================================================
-    // STAGE 3
-    // =========================================================
-
-    private void StartStage3()
+    private IEnumerator TimeoutPenaltyRoutine()
     {
-        currentStage = 3;
+        if (penaltyActive)
+            yield break;
 
-        stageTimer = 0f;
+        penaltyActive =
+            true;
 
-        exitReady = false;
+        // 시간만 초기화
+        // 이미 활성화한 Device 진행도는 유지
+        levelTimer =
+            0f;
 
-        currentDevice = null;
+        if (missionText != null)
+        {
+            missionText.color =
+                new Color(
+                    1f,
+                    0.25f,
+                    0.25f
+                );
 
+            missionText.text =
+                "TIME OVER!\n" +
+                $"HP -{timeoutDamage}";
+        }
 
-        HideAllDevices();
-
+        if (
+            playerHealth != null &&
+            !playerHealth.IsDead
+        )
+        {
+            playerHealth.TakeDamage(
+                timeoutDamage
+            );
+        }
 
         Debug.Log(
-            "[MissionManager] STAGE 3 시작"
+            $"[MissionManager] LEVEL {CurrentLevel} 시간 초과 / " +
+            $"HP -{timeoutDamage}"
         );
 
+        yield return new WaitForSeconds(
+            penaltyMessageDuration
+        );
+
+        penaltyActive =
+            false;
 
         UpdateMissionUI();
     }
 
+    // =====================================================
+    // RANDOM EXIT
+    // =====================================================
 
-    // =========================================================
-    // EXIT
-    // =========================================================
-
-    private void HideAllExitPoints()
+    private void OpenRandomExit()
     {
-        activeExitPoint = null;
+        exitReady =
+            true;
 
+        DisableAllDevices();
 
-        if (exitPoints == null)
+        // 혹시 기존 포털이 켜져 있다면 모두 끔
+        for (
+            int i = 0;
+            i < exitPortals.Count;
+            i++
+        )
         {
-            return;
+            if (exitPortals[i] == null)
+                continue;
+
+            exitPortals[i]
+                .gameObject
+                .SetActive(false);
         }
 
-
-        foreach (Transform point in exitPoints)
+        if (
+            exitPortals.Count > 0
+        )
         {
-            if (point != null)
-            {
-                point.gameObject.SetActive(false);
-            }
+            int randomIndex =
+                Random.Range(
+                    0,
+                    exitPortals.Count
+                );
+
+            activeExitPortal =
+                exitPortals[randomIndex];
+
+            activeExitPortal
+                .gameObject
+                .SetActive(true);
+
+            Debug.Log(
+                $"[MissionManager] EXIT OPEN → " +
+                $"{activeExitPortal.name}"
+            );
+        }
+        else if (
+            exitPoint != null
+        )
+        {
+            // 자식 포털이 없는 경우
+            // 기존 방식으로 ExitPoint 자체 사용
+            activeExitPortal =
+                exitPoint;
+
+            exitPoint.gameObject.SetActive(
+                true
+            );
+
+            Debug.LogWarning(
+                "[MissionManager] ExitPoint 자식 포털이 없어 " +
+                "ExitPoint 자체를 탈출 위치로 사용합니다."
+            );
+        }
+        else
+        {
+            Debug.LogError(
+                "[MissionManager] 사용할 Exit이 없습니다."
+            );
+        }
+
+        UpdateMissionUI();
+    }
+
+    // =====================================================
+    // DISABLE DEVICES
+    // =====================================================
+
+    private void DisableAllDevices()
+    {
+        for (
+            int i = 0;
+            i < devices.Count;
+            i++
+        )
+        {
+            if (devices[i] == null)
+                continue;
+
+            devices[i]
+                .SetAvailableForLevel(
+                    false
+                );
         }
     }
 
-
-    private void ActivateRandomExit()
-    {
-        if (exitPoints == null ||
-            exitPoints.Length == 0)
-        {
-            Debug.LogError(
-                "[MissionManager] Exit Points가 등록되지 않았습니다."
-            );
-
-            return;
-        }
-
-
-        // 먼저 전부 OFF
-        HideAllExitPoints();
-
-
-        // null이 아닌 Exit만 후보 등록
-        List<Transform> candidates =
-            new List<Transform>();
-
-
-        foreach (Transform point in exitPoints)
-        {
-            if (point != null)
-            {
-                candidates.Add(point);
-            }
-        }
-
-
-        if (candidates.Count == 0)
-        {
-            Debug.LogError(
-                "[MissionManager] 사용 가능한 Exit Point가 없습니다."
-            );
-
-            return;
-        }
-
-
-        int randomIndex =
-            Random.Range(
-                0,
-                candidates.Count
-            );
-
-
-        activeExitPoint =
-            candidates[randomIndex];
-
-
-        activeExitPoint.gameObject.SetActive(true);
-
-
-        Debug.Log(
-            "[MissionManager] 랜덤 Exit 활성화 : " +
-            activeExitPoint.name
-        );
-    }
-
+    // =====================================================
+    // CHECK EXIT
+    // =====================================================
 
     private void CheckExit()
     {
-        if (activeExitPoint == null)
+        if (
+            activeExitPortal == null
+        )
         {
             return;
         }
-
 
         Vector3 playerPosition =
             transform.position;
 
-
         Vector3 exitPosition =
-            activeExitPoint.position;
+            activeExitPortal.position;
 
+        playerPosition.y =
+            0f;
 
-        // 높이 무시
-        playerPosition.y = 0f;
-
-        exitPosition.y = 0f;
-
+        exitPosition.y =
+            0f;
 
         float distance =
             Vector3.Distance(
@@ -572,57 +695,86 @@ public class MissionManager : MonoBehaviour
                 exitPosition
             );
 
-
-        if (distance <= Mathf.Max(
+        if (
+            distance <=
+            Mathf.Max(
                 0.1f,
-                exitRadius))
+                exitRadius
+            )
+        )
         {
             ClearMission();
         }
     }
 
-
-    // =========================================================
-    // Mission Clear
-    // =========================================================
+    // =====================================================
+    // CLEAR MISSION
+    // =====================================================
 
     private void ClearMission()
     {
         if (missionCleared)
-        {
             return;
-        }
-
 
         GameUI gameUI =
             GetComponent<GameUI>();
 
-
         if (gameUI == null)
         {
             Debug.LogError(
-                "[MissionManager] GameUI가 Player에 없습니다."
+                "GameUI was not found on the player."
             );
 
             return;
         }
 
-
-        missionCleared = true;
-
-
-        Debug.Log(
-            "[MissionManager] MISSION CLEAR"
-        );
-
+        missionCleared =
+            true;
 
         gameUI.ShowMissionClear();
     }
 
+    // =====================================================
+    // LEVEL INFO
+    // =====================================================
 
-    // =========================================================
+    private int GetRequiredDeviceCount()
+    {
+        if (
+            levels == null ||
+            levels.Count == 0
+        )
+        {
+            return 0;
+        }
+
+        return Mathf.Max(
+            1,
+            levels[currentLevelIndex]
+                .requiredDevices
+        );
+    }
+
+    private float GetCurrentTimeLimit()
+    {
+        if (
+            levels == null ||
+            levels.Count == 0
+        )
+        {
+            return 30f;
+        }
+
+        return Mathf.Max(
+            1f,
+            levels[currentLevelIndex]
+                .timeLimit
+        );
+    }
+
+    // =====================================================
     // UI
-    // =========================================================
+    // =====================================================
 
     private void CreateMissionUI()
     {
@@ -634,10 +786,8 @@ public class MissionManager : MonoBehaviour
                 typeof(CanvasScaler)
             );
 
-
         Canvas canvas =
             missionCanvas.GetComponent<Canvas>();
-
 
         canvas.renderMode =
             RenderMode.ScreenSpaceOverlay;
@@ -645,14 +795,13 @@ public class MissionManager : MonoBehaviour
         canvas.sortingOrder =
             90;
 
-
         CanvasScaler scaler =
-            missionCanvas.GetComponent<CanvasScaler>();
-
+            missionCanvas
+                .GetComponent<CanvasScaler>();
 
         scaler.uiScaleMode =
-            CanvasScaler.ScaleMode.ScaleWithScreenSize;
-
+            CanvasScaler.ScaleMode
+                .ScaleWithScreenSize;
 
         scaler.referenceResolution =
             new Vector2(
@@ -660,14 +809,8 @@ public class MissionManager : MonoBehaviour
                 1080
             );
 
-
         scaler.matchWidthOrHeight =
             0.5f;
-
-
-        // -------------------------
-        // Panel
-        // -------------------------
 
         GameObject panelObject =
             new GameObject(
@@ -677,16 +820,13 @@ public class MissionManager : MonoBehaviour
                 typeof(Image)
             );
 
-
         panelObject.transform.SetParent(
             missionCanvas.transform,
             false
         );
 
-
         Image panelImage =
             panelObject.GetComponent<Image>();
-
 
         panelImage.color =
             new Color(
@@ -696,14 +836,12 @@ public class MissionManager : MonoBehaviour
                 0.9f
             );
 
-
         panelImage.raycastTarget =
             false;
 
-
         RectTransform panelRect =
-            panelObject.GetComponent<RectTransform>();
-
+            panelObject
+                .GetComponent<RectTransform>();
 
         panelRect.anchorMin =
             new Vector2(
@@ -711,13 +849,11 @@ public class MissionManager : MonoBehaviour
                 1f
             );
 
-
         panelRect.anchorMax =
             new Vector2(
                 0.5f,
                 1f
             );
-
 
         panelRect.pivot =
             new Vector2(
@@ -725,24 +861,17 @@ public class MissionManager : MonoBehaviour
                 1f
             );
 
-
         panelRect.anchoredPosition =
             new Vector2(
                 0f,
                 -36f
             );
 
-
         panelRect.sizeDelta =
             new Vector2(
                 900f,
-                126f
+                150f
             );
-
-
-        // -------------------------
-        // Text
-        // -------------------------
 
         GameObject textObject =
             new GameObject(
@@ -752,57 +881,45 @@ public class MissionManager : MonoBehaviour
                 typeof(Text)
             );
 
-
         textObject.transform.SetParent(
             panelObject.transform,
             false
         );
 
-
         missionText =
             textObject.GetComponent<Text>();
-
 
         missionText.font =
             Resources.GetBuiltinResource<Font>(
                 "LegacyRuntime.ttf"
             );
 
-
         missionText.fontSize =
             30;
-
 
         missionText.alignment =
             TextAnchor.MiddleCenter;
 
-
         missionText.color =
             Color.white;
-
 
         missionText.raycastTarget =
             false;
 
-
         RectTransform textRect =
             missionText.rectTransform;
-
 
         textRect.anchorMin =
             Vector2.zero;
 
-
         textRect.anchorMax =
             Vector2.one;
-
 
         textRect.offsetMin =
             new Vector2(
                 20f,
                 10f
             );
-
 
         textRect.offsetMax =
             new Vector2(
@@ -811,97 +928,90 @@ public class MissionManager : MonoBehaviour
             );
     }
 
-
-    // =========================================================
-    // UI 갱신
-    // =========================================================
-
     private void UpdateMissionUI()
     {
         if (missionText == null)
+            return;
+
+        if (exitReady)
         {
+            missionText.color =
+                Color.white;
+
+            missionText.text =
+                "EXIT OPEN\n" +
+                "REACH THE PORTAL";
+
             return;
         }
 
+        int seconds =
+            Mathf.CeilToInt(
+                Mathf.Max(
+                    0f,
+                    RemainingTime
+                )
+            );
 
-        // STAGE 1
-        if (currentStage == 1)
+        missionText.text =
+            $"LEVEL {CurrentLevel} - ACTIVATE DEVICES\n" +
+            $"DEVICES: {activatedDevices} / " +
+            $"{GetRequiredDeviceCount()}    " +
+            $"TIME LEFT: {seconds}s";
+
+        if (seconds <= 5)
         {
-            int seconds =
-                Mathf.CeilToInt(
-                    Mathf.Max(
-                        0f,
-                        stage1Duration -
-                        stageTimer
-                    )
+            missionText.color =
+                new Color(
+                    1f,
+                    0.3f,
+                    0.3f
                 );
-
-
-            missionText.text =
-                "STAGE 1 - SURVIVE\n" +
-                "TIME LEFT: " +
-                seconds +
-                "s";
         }
-
-
-        // STAGE 2
-        else if (currentStage == 2)
+        else
         {
-            missionText.text =
-                "STAGE 2 - ACTIVATE DEVICES\n" +
-                "DEVICES: " +
-                activatedDevices +
-                " / " +
-                requiredDeviceCount;
-        }
-
-
-        // STAGE 3
-        else if (currentStage == 3)
-        {
-            if (!exitReady)
-            {
-                int seconds =
-                    Mathf.CeilToInt(
-                        Mathf.Max(
-                            0f,
-                            stage3Duration -
-                            stageTimer
-                        )
-                    );
-
-
-                missionText.text =
-                    "STAGE 3 - SURVIVE\n" +
-                    "EXIT OPENS IN: " +
-                    seconds +
-                    "s";
-            }
-            else
-            {
-                missionText.text =
-                    "EXIT OPEN\n" +
-                    "REACH THE PORTAL";
-            }
+            missionText.color =
+                Color.white;
         }
     }
 
+    // =====================================================
+    // DEVICE SHUFFLE
+    // =====================================================
 
-    // =========================================================
-    // Destroy
-    // =========================================================
+    private void Shuffle(
+        List<MissionDevice> list)
+    {
+        for (
+            int i =
+                list.Count - 1;
+            i > 0;
+            i--
+        )
+        {
+            int randomIndex =
+                Random.Range(
+                    0,
+                    i + 1
+                );
+
+            MissionDevice temp =
+                list[i];
+
+            list[i] =
+                list[randomIndex];
+
+            list[randomIndex] =
+                temp;
+        }
+    }
+
+    // =====================================================
+    // CLEANUP
+    // =====================================================
 
     private void OnDestroy()
     {
-        if (nextDeviceCoroutine != null)
-        {
-            StopCoroutine(
-                nextDeviceCoroutine
-            );
-        }
-
-
         if (missionCanvas != null)
         {
             Destroy(
