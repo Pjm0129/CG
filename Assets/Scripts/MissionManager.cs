@@ -7,6 +7,15 @@ using UnityEngine.UI;
 [RequireComponent(typeof(PlayerHealth))]
 public class MissionManager : MonoBehaviour
 {
+    public const string LastClearTimeKey =
+        "DodgeRush_LastClearTime";
+
+    public const string BestClearTimeKey =
+        "DodgeRush_BestClearTime";
+
+    public const string ClearCountKey =
+        "DodgeRush_ClearCount";
+
     [System.Serializable]
     public class LevelSettings
     {
@@ -77,6 +86,9 @@ public class MissionManager : MonoBehaviour
 
     private float levelTimer;
 
+    // 전체 게임 클리어 시간
+    private float runTimer;
+
     private bool missionCleared;
     private bool exitReady;
     private bool levelTransitioning;
@@ -121,6 +133,9 @@ public class MissionManager : MonoBehaviour
         GetCurrentTimeLimit() -
         levelTimer;
 
+    public float CurrentRunTime =>
+        runTimer;
+
     // =====================================================
     // START
     // =====================================================
@@ -129,6 +144,9 @@ public class MissionManager : MonoBehaviour
     {
         playerHealth =
             GetComponent<PlayerHealth>();
+
+        runTimer =
+            0f;
 
         FindDifficultyManagers();
 
@@ -179,6 +197,11 @@ public class MissionManager : MonoBehaviour
             return;
         }
 
+        // Level 전환이나 패널티 시간도
+        // 실제 플레이 시간에 포함
+        runTimer +=
+            Time.deltaTime;
+
         if (exitReady)
         {
             CheckExit();
@@ -227,8 +250,7 @@ public class MissionManager : MonoBehaviour
         )
         {
             Debug.LogError(
-                "[MissionManager] " +
-                "Level Settings가 없습니다."
+                "[MissionManager] Level Settings가 없습니다."
             );
 
             return;
@@ -311,8 +333,7 @@ public class MissionManager : MonoBehaviour
         SetupDeviceReferences();
 
         Debug.Log(
-            $"[MissionManager] " +
-            $"Device {devices.Count}개 발견"
+            $"[MissionManager] Device {devices.Count}개 발견"
         );
     }
 
@@ -616,6 +637,11 @@ public class MissionManager : MonoBehaviour
             activeExitPortal
                 .gameObject
                 .SetActive(true);
+
+            Debug.Log(
+                $"[MissionManager] EXIT OPEN → " +
+                $"{activeExitPortal.name}"
+            );
         }
         else if (exitPoint != null)
         {
@@ -659,8 +685,11 @@ public class MissionManager : MonoBehaviour
         Vector3 exitPosition =
             activeExitPortal.position;
 
-        playerPosition.y = 0f;
-        exitPosition.y = 0f;
+        playerPosition.y =
+            0f;
+
+        exitPosition.y =
+            0f;
 
         float distance =
             Vector3.Distance(
@@ -679,6 +708,10 @@ public class MissionManager : MonoBehaviour
             ClearMission();
         }
     }
+
+    // =====================================================
+    // CLEAR
+    // =====================================================
 
     private void ClearMission()
     {
@@ -700,7 +733,93 @@ public class MissionManager : MonoBehaviour
         missionCleared =
             true;
 
+        SaveClearRecord();
+
         gameUI.ShowMissionClear();
+    }
+
+    // =====================================================
+    // RECORD SAVE
+    // =====================================================
+
+    private void SaveClearRecord()
+    {
+        float clearTime =
+            Mathf.Max(
+                0f,
+                runTimer
+            );
+
+        PlayerPrefs.SetFloat(
+            LastClearTimeKey,
+            clearTime
+        );
+
+        bool hasBest =
+            PlayerPrefs.HasKey(
+                BestClearTimeKey
+            );
+
+        float bestTime =
+            PlayerPrefs.GetFloat(
+                BestClearTimeKey,
+                0f
+            );
+
+        bool newBest =
+            !hasBest ||
+            bestTime <= 0f ||
+            clearTime < bestTime;
+
+        if (newBest)
+        {
+            PlayerPrefs.SetFloat(
+                BestClearTimeKey,
+                clearTime
+            );
+        }
+
+        int clearCount =
+            PlayerPrefs.GetInt(
+                ClearCountKey,
+                0
+            );
+
+        PlayerPrefs.SetInt(
+            ClearCountKey,
+            clearCount + 1
+        );
+
+        PlayerPrefs.Save();
+
+        Debug.Log(
+            $"[RECORD] CLEAR TIME = {FormatTime(clearTime)}"
+        );
+
+        if (newBest)
+        {
+            Debug.Log(
+                $"[RECORD] NEW BEST = {FormatTime(clearTime)}"
+            );
+        }
+    }
+
+    private string FormatTime(
+        float seconds)
+    {
+        int totalSeconds =
+            Mathf.FloorToInt(
+                seconds
+            );
+
+        int minutes =
+            totalSeconds / 60;
+
+        int remainSeconds =
+            totalSeconds % 60;
+
+        return
+            $"{minutes:00}:{remainSeconds:00}";
     }
 
     // =====================================================
@@ -749,18 +868,19 @@ public class MissionManager : MonoBehaviour
             90;
 
         CanvasScaler scaler =
-            missionCanvas
-                .GetComponent<CanvasScaler>();
+            missionCanvas.GetComponent<CanvasScaler>();
 
         scaler.uiScaleMode =
-            CanvasScaler.ScaleMode
-                .ScaleWithScreenSize;
+            CanvasScaler.ScaleMode.ScaleWithScreenSize;
 
         scaler.referenceResolution =
             new Vector2(
                 1920,
                 1080
             );
+
+        scaler.matchWidthOrHeight =
+            0.5f;
 
         GameObject panelObject =
             new GameObject(
@@ -785,6 +905,9 @@ public class MissionManager : MonoBehaviour
                 0.09f,
                 0.9f
             );
+
+        panelImage.raycastTarget =
+            false;
 
         RectTransform panelRect =
             panelObject
@@ -849,6 +972,9 @@ public class MissionManager : MonoBehaviour
 
         missionText.color =
             Color.white;
+
+        missionText.raycastTarget =
+            false;
 
         RectTransform textRect =
             missionText.rectTransform;
