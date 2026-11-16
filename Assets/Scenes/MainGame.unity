@@ -528,20 +528,27 @@ MonoBehaviour:
   preventSamePattern: 1
   firePattern: 0
   singleMaterial: {fileID: 2100000, guid: 9d59fd0bb2aa4e248b8cd728c1241ae9, type: 2}
-  spreadMaterial: {fileID: 2100000, guid: 90fdf22600e9cb540ba8f74e1da8849d, type: 2}
-  radialMaterial: {fileID: 2100000, guid: 88b91588f4f78d9418817c961e5fe448, type: 2}
   singleColor: {r: 0, g: 1, b: 1, a: 1}
+  spreadMaterial: {fileID: 2100000, guid: 90fdf22600e9cb540ba8f74e1da8849d, type: 2}
   spreadColor: {r: 1, g: 0.35, b: 0.05, a: 1}
+  radialMaterial: {fileID: 2100000, guid: 88b91588f4f78d9418817c961e5fe448, type: 2}
   radialColor: {r: 1, g: 0, b: 1, a: 1}
+  spiralMaterial: {fileID: 2100000, guid: f034729df63b7b64cbc1bd7dd61dcfbe, type: 2}
+  spiralColor: {r: 0.25, g: 1, b: 0.55, a: 1}
   singleBurstCount: 3
   burstShotInterval: 0.2
   spreadBulletCount: 5
   spreadAngle: 45
   radialBulletCount: 12
+  spiralWaveCount: 5
+  spiralBulletCount: 8
+  spiralRotationStep: 12
+  spiralShotInterval: 0.12
   useTelegraph: 1
   singleTelegraphLength: 25
   spreadTelegraphLength: 12
   radialTelegraphLength: 7
+  spiralTelegraphLength: 14
   telegraphHeightOffset: 0.15
   glowWidth: 0.18
   coreWidth: 0.055
@@ -551,7 +558,7 @@ MonoBehaviour:
   blinkSpeed: 5
   showRadialRing: 1
   radialRingRadius: 3.5
-  ringSegments: 64
+  radialRingSegments: 64
 --- !u!1 &160457972
 GameObject:
   m_ObjectHideFlags: 0
@@ -792,7 +799,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 6572007167009767365, guid: d484d397f430c93478ffd64446f9cc83, type: 3}
       propertyPath: m_LocalPosition.x
-      value: -6.29
+      value: -11.33
       objectReference: {fileID: 0}
     - target: {fileID: 6572007167009767365, guid: d484d397f430c93478ffd64446f9cc83, type: 3}
       propertyPath: m_LocalPosition.y
@@ -800,7 +807,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 6572007167009767365, guid: d484d397f430c93478ffd64446f9cc83, type: 3}
       propertyPath: m_LocalPosition.z
-      value: 10.54
+      value: 18.23
       objectReference: {fileID: 0}
     - target: {fileID: 6572007167009767365, guid: d484d397f430c93478ffd64446f9cc83, type: 3}
       propertyPath: m_LocalRotation.w
@@ -1346,20 +1353,27 @@ MonoBehaviour:
   preventSamePattern: 1
   firePattern: 1
   singleMaterial: {fileID: 2100000, guid: 9d59fd0bb2aa4e248b8cd728c1241ae9, type: 2}
-  spreadMaterial: {fileID: 2100000, guid: 90fdf22600e9cb540ba8f74e1da8849d, type: 2}
-  radialMaterial: {fileID: 2100000, guid: 88b91588f4f78d9418817c961e5fe448, type: 2}
   singleColor: {r: 0, g: 1, b: 1, a: 1}
+  spreadMaterial: {fileID: 2100000, guid: 90fdf22600e9cb540ba8f74e1da8849d, type: 2}
   spreadColor: {r: 1, g: 0.35, b: 0.05, a: 1}
+  radialMaterial: {fileID: 2100000, guid: 88b91588f4f78d9418817c961e5fe448, type: 2}
   radialColor: {r: 1, g: 0, b: 1, a: 1}
+  spiralMaterial: {fileID: 2100000, guid: f034729df63b7b64cbc1bd7dd61dcfbe, type: 2}
+  spiralColor: {r: 0.25, g: 1, b: 0.55, a: 1}
   singleBurstCount: 3
   burstShotInterval: 0.2
   spreadBulletCount: 5
   spreadAngle: 45
   radialBulletCount: 12
+  spiralWaveCount: 5
+  spiralBulletCount: 8
+  spiralRotationStep: 12
+  spiralShotInterval: 0.12
   useTelegraph: 1
   singleTelegraphLength: 25
   spreadTelegraphLength: 12
   radialTelegraphLength: 7
+  spiralTelegraphLength: 14
   telegraphHeightOffset: 0.15
   glowWidth: 0.18
   coreWidth: 0.055
@@ -1369,7 +1383,7 @@ MonoBehaviour:
   blinkSpeed: 5
   showRadialRing: 1
   radialRingRadius: 3.5
-  ringSegments: 64
+  radialRingSegments: 64
 --- !u!1 &501776199
 GameObject:
   m_ObjectHideFlags: 0
@@ -2056,20 +2070,27 @@ MonoBehaviour:
   preventSamePattern: 1
   firePattern: 2
   singleMaterial: {fileID: 2100000, guid: 9d59fd0bb2aa4e248b8cd728c1241ae9, type: 2}
-  spreadMaterial: {fileID: 2100000, guid: 90fdf22600e9cb540ba8f74e1da8849d, type: 2}
-  radialMaterial: {fileID: 2100000, guid: 88b91588f4f78d9418817c961e5fe448, type: 2}
   singleColor: {r: 0, g: 1, b: 1, a: 1}
+  spreadMaterial: {fileID: 2100000, guid: 90fdf22600e9cb540ba8f74e1da8849d, type: 2}
   spreadColor: {r: 1, g: 0.35, b: 0.05, a: 1}
+  radialMaterial: {fileID: 2100000, guid: 88b91588f4f78d9418817c961e5fe448, type: 2}
   radialColor: {r: 1, g: 0, b: 1, a: 1}
+  spiralMaterial: {fileID: 2100000, guid: f034729df63b7b64cbc1bd7dd61dcfbe, type: 2}
+  spiralColor: {r: 0.25, g: 1, b: 0.55, a: 1}
   singleBurstCount: 3
   burstShotInterval: 0.2
   spreadBulletCount: 5
   spreadAngle: 45
   radialBulletCount: 12
+  spiralWaveCount: 5
+  spiralBulletCount: 8
+  spiralRotationStep: 12
+  spiralShotInterval: 0.12
   useTelegraph: 1
   singleTelegraphLength: 25
   spreadTelegraphLength: 12
   radialTelegraphLength: 7
+  spiralTelegraphLength: 14
   telegraphHeightOffset: 0.15
   glowWidth: 0.18
   coreWidth: 0.055
@@ -2079,7 +2100,7 @@ MonoBehaviour:
   blinkSpeed: 5
   showRadialRing: 1
   radialRingRadius: 3.5
-  ringSegments: 64
+  radialRingSegments: 64
 --- !u!1001 &758946058
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -2321,6 +2342,8 @@ MonoBehaviour:
     timeLimit: 35
   - requiredDevices: 7
     timeLimit: 40
+  turretFireManager: {fileID: 1485572656}
+  hazardZoneManager: {fileID: 1583483772}
   timeoutDamage: 1
   penaltyMessageDuration: 1
   levelTransitionDuration: 1.5
@@ -2867,20 +2890,27 @@ MonoBehaviour:
   preventSamePattern: 1
   firePattern: 1
   singleMaterial: {fileID: 2100000, guid: 9d59fd0bb2aa4e248b8cd728c1241ae9, type: 2}
-  spreadMaterial: {fileID: 2100000, guid: 90fdf22600e9cb540ba8f74e1da8849d, type: 2}
-  radialMaterial: {fileID: 2100000, guid: 88b91588f4f78d9418817c961e5fe448, type: 2}
   singleColor: {r: 0, g: 1, b: 1, a: 1}
+  spreadMaterial: {fileID: 2100000, guid: 90fdf22600e9cb540ba8f74e1da8849d, type: 2}
   spreadColor: {r: 1, g: 0.35, b: 0.05, a: 1}
+  radialMaterial: {fileID: 2100000, guid: 88b91588f4f78d9418817c961e5fe448, type: 2}
   radialColor: {r: 1, g: 0, b: 1, a: 1}
+  spiralMaterial: {fileID: 2100000, guid: f034729df63b7b64cbc1bd7dd61dcfbe, type: 2}
+  spiralColor: {r: 0.25, g: 1, b: 0.55, a: 1}
   singleBurstCount: 3
   burstShotInterval: 0.2
   spreadBulletCount: 5
   spreadAngle: 45
   radialBulletCount: 12
+  spiralWaveCount: 5
+  spiralBulletCount: 8
+  spiralRotationStep: 12
+  spiralShotInterval: 0.12
   useTelegraph: 1
   singleTelegraphLength: 25
   spreadTelegraphLength: 12
   radialTelegraphLength: 7
+  spiralTelegraphLength: 14
   telegraphHeightOffset: 0.15
   glowWidth: 0.18
   coreWidth: 0.055
@@ -2890,7 +2920,7 @@ MonoBehaviour:
   blinkSpeed: 5
   showRadialRing: 1
   radialRingRadius: 3.5
-  ringSegments: 64
+  radialRingSegments: 64
 --- !u!1 &1087179561
 GameObject:
   m_ObjectHideFlags: 0
@@ -2943,20 +2973,27 @@ MonoBehaviour:
   preventSamePattern: 1
   firePattern: 1
   singleMaterial: {fileID: 2100000, guid: 9d59fd0bb2aa4e248b8cd728c1241ae9, type: 2}
-  spreadMaterial: {fileID: 2100000, guid: 90fdf22600e9cb540ba8f74e1da8849d, type: 2}
-  radialMaterial: {fileID: 2100000, guid: 88b91588f4f78d9418817c961e5fe448, type: 2}
   singleColor: {r: 0, g: 1, b: 1, a: 1}
+  spreadMaterial: {fileID: 2100000, guid: 90fdf22600e9cb540ba8f74e1da8849d, type: 2}
   spreadColor: {r: 1, g: 0.35, b: 0.05, a: 1}
+  radialMaterial: {fileID: 2100000, guid: 88b91588f4f78d9418817c961e5fe448, type: 2}
   radialColor: {r: 1, g: 0, b: 1, a: 1}
+  spiralMaterial: {fileID: 2100000, guid: f034729df63b7b64cbc1bd7dd61dcfbe, type: 2}
+  spiralColor: {r: 0.25, g: 1, b: 0.55, a: 1}
   singleBurstCount: 3
   burstShotInterval: 0.2
   spreadBulletCount: 5
   spreadAngle: 45
   radialBulletCount: 12
+  spiralWaveCount: 5
+  spiralBulletCount: 8
+  spiralRotationStep: 12
+  spiralShotInterval: 0.12
   useTelegraph: 1
   singleTelegraphLength: 25
   spreadTelegraphLength: 12
   radialTelegraphLength: 7
+  spiralTelegraphLength: 14
   telegraphHeightOffset: 0.15
   glowWidth: 0.18
   coreWidth: 0.055
@@ -2966,7 +3003,7 @@ MonoBehaviour:
   blinkSpeed: 5
   showRadialRing: 1
   radialRingRadius: 3.5
-  ringSegments: 64
+  radialRingSegments: 64
 --- !u!1 &1088495120
 GameObject:
   m_ObjectHideFlags: 0
@@ -3316,7 +3353,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 6572007167009767365, guid: d484d397f430c93478ffd64446f9cc83, type: 3}
       propertyPath: m_LocalPosition.x
-      value: 14.01
+      value: 21.18
       objectReference: {fileID: 0}
     - target: {fileID: 6572007167009767365, guid: d484d397f430c93478ffd64446f9cc83, type: 3}
       propertyPath: m_LocalPosition.y
@@ -3324,7 +3361,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 6572007167009767365, guid: d484d397f430c93478ffd64446f9cc83, type: 3}
       propertyPath: m_LocalPosition.z
-      value: -4.41
+      value: -6.76
       objectReference: {fileID: 0}
     - target: {fileID: 6572007167009767365, guid: d484d397f430c93478ffd64446f9cc83, type: 3}
       propertyPath: m_LocalRotation.w
@@ -3681,20 +3718,27 @@ MonoBehaviour:
   preventSamePattern: 1
   firePattern: 2
   singleMaterial: {fileID: 2100000, guid: 9d59fd0bb2aa4e248b8cd728c1241ae9, type: 2}
-  spreadMaterial: {fileID: 2100000, guid: 90fdf22600e9cb540ba8f74e1da8849d, type: 2}
-  radialMaterial: {fileID: 2100000, guid: 88b91588f4f78d9418817c961e5fe448, type: 2}
   singleColor: {r: 0, g: 1, b: 1, a: 1}
+  spreadMaterial: {fileID: 2100000, guid: 90fdf22600e9cb540ba8f74e1da8849d, type: 2}
   spreadColor: {r: 1, g: 0.35, b: 0.05, a: 1}
+  radialMaterial: {fileID: 2100000, guid: 88b91588f4f78d9418817c961e5fe448, type: 2}
   radialColor: {r: 1, g: 0, b: 1, a: 1}
+  spiralMaterial: {fileID: 2100000, guid: f034729df63b7b64cbc1bd7dd61dcfbe, type: 2}
+  spiralColor: {r: 0.25, g: 1, b: 0.55, a: 1}
   singleBurstCount: 3
   burstShotInterval: 0.2
   spreadBulletCount: 5
   spreadAngle: 45
   radialBulletCount: 12
+  spiralWaveCount: 5
+  spiralBulletCount: 8
+  spiralRotationStep: 12
+  spiralShotInterval: 0.12
   useTelegraph: 1
   singleTelegraphLength: 25
   spreadTelegraphLength: 12
   radialTelegraphLength: 7
+  spiralTelegraphLength: 14
   telegraphHeightOffset: 0.15
   glowWidth: 0.18
   coreWidth: 0.055
@@ -3704,7 +3748,7 @@ MonoBehaviour:
   blinkSpeed: 5
   showRadialRing: 1
   radialRingRadius: 3.5
-  ringSegments: 64
+  radialRingSegments: 64
 --- !u!1 &1364222846
 GameObject:
   m_ObjectHideFlags: 0
@@ -3876,10 +3920,19 @@ MonoBehaviour:
   - {fileID: 1065247608}
   - {fileID: 1698387752}
   - {fileID: 98436811}
-  minFireCount: 1
-  maxFireCount: 2
-  minInterval: 1.5
-  maxInterval: 2.5
+  levelDifficulties:
+  - minFireCount: 1
+    maxFireCount: 2
+    minInterval: 3.5
+    maxInterval: 5
+  - minFireCount: 2
+    maxFireCount: 2
+    minInterval: 2.5
+    maxInterval: 4
+  - minFireCount: 2
+    maxFireCount: 3
+    minInterval: 1.8
+    maxInterval: 3
   telegraphDuration: 0.8
   startDelay: 1
 --- !u!4 &1485572657
@@ -3990,11 +4043,20 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::HazardZoneManager
   hazardZonePrefab: {fileID: 3042269313754734524, guid: 49763df4f297f204a8be8b2fb6e987e2, type: 3}
   spawnPointRoot: {fileID: 1828899464}
+  levelDifficulties:
+  - minSpawnCount: 1
+    maxSpawnCount: 1
+    minSpawnInterval: 6
+    maxSpawnInterval: 8
+  - minSpawnCount: 1
+    maxSpawnCount: 2
+    minSpawnInterval: 4
+    maxSpawnInterval: 6
+  - minSpawnCount: 2
+    maxSpawnCount: 3
+    minSpawnInterval: 3
+    maxSpawnInterval: 4.5
   startDelay: 5
-  minSpawnInterval: 4
-  maxSpawnInterval: 7
-  minSpawnCount: 2
-  maxSpawnCount: 3
   spawnHeightOffset: 0.08
   minimumPlayerDistance: 2
 --- !u!4 &1583483773
@@ -4492,20 +4554,27 @@ MonoBehaviour:
   preventSamePattern: 1
   firePattern: 0
   singleMaterial: {fileID: 2100000, guid: 9d59fd0bb2aa4e248b8cd728c1241ae9, type: 2}
-  spreadMaterial: {fileID: 2100000, guid: 90fdf22600e9cb540ba8f74e1da8849d, type: 2}
-  radialMaterial: {fileID: 2100000, guid: 88b91588f4f78d9418817c961e5fe448, type: 2}
   singleColor: {r: 0, g: 1, b: 1, a: 1}
+  spreadMaterial: {fileID: 2100000, guid: 90fdf22600e9cb540ba8f74e1da8849d, type: 2}
   spreadColor: {r: 1, g: 0.35, b: 0.05, a: 1}
+  radialMaterial: {fileID: 2100000, guid: 88b91588f4f78d9418817c961e5fe448, type: 2}
   radialColor: {r: 1, g: 0, b: 1, a: 1}
+  spiralMaterial: {fileID: 2100000, guid: f034729df63b7b64cbc1bd7dd61dcfbe, type: 2}
+  spiralColor: {r: 0.25, g: 1, b: 0.55, a: 1}
   singleBurstCount: 3
   burstShotInterval: 0.2
   spreadBulletCount: 5
   spreadAngle: 45
   radialBulletCount: 12
+  spiralWaveCount: 5
+  spiralBulletCount: 8
+  spiralRotationStep: 12
+  spiralShotInterval: 0.12
   useTelegraph: 1
   singleTelegraphLength: 25
   spreadTelegraphLength: 12
   radialTelegraphLength: 7
+  spiralTelegraphLength: 14
   telegraphHeightOffset: 0.15
   glowWidth: 0.18
   coreWidth: 0.055
@@ -4515,7 +4584,7 @@ MonoBehaviour:
   blinkSpeed: 5
   showRadialRing: 1
   radialRingRadius: 3.5
-  ringSegments: 64
+  radialRingSegments: 64
 --- !u!1001 &1710410338
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -4676,20 +4745,27 @@ MonoBehaviour:
   preventSamePattern: 1
   firePattern: 0
   singleMaterial: {fileID: 2100000, guid: 9d59fd0bb2aa4e248b8cd728c1241ae9, type: 2}
-  spreadMaterial: {fileID: 2100000, guid: 90fdf22600e9cb540ba8f74e1da8849d, type: 2}
-  radialMaterial: {fileID: 2100000, guid: 88b91588f4f78d9418817c961e5fe448, type: 2}
   singleColor: {r: 0, g: 1, b: 1, a: 1}
+  spreadMaterial: {fileID: 2100000, guid: 90fdf22600e9cb540ba8f74e1da8849d, type: 2}
   spreadColor: {r: 1, g: 0.35, b: 0.05, a: 1}
+  radialMaterial: {fileID: 2100000, guid: 88b91588f4f78d9418817c961e5fe448, type: 2}
   radialColor: {r: 1, g: 0, b: 1, a: 1}
+  spiralMaterial: {fileID: 2100000, guid: f034729df63b7b64cbc1bd7dd61dcfbe, type: 2}
+  spiralColor: {r: 0.25, g: 1, b: 0.55, a: 1}
   singleBurstCount: 3
   burstShotInterval: 0.2
   spreadBulletCount: 5
   spreadAngle: 45
   radialBulletCount: 12
+  spiralWaveCount: 5
+  spiralBulletCount: 8
+  spiralRotationStep: 12
+  spiralShotInterval: 0.12
   useTelegraph: 1
   singleTelegraphLength: 25
   spreadTelegraphLength: 12
   radialTelegraphLength: 7
+  spiralTelegraphLength: 14
   telegraphHeightOffset: 0.15
   glowWidth: 0.18
   coreWidth: 0.055
@@ -4699,7 +4775,7 @@ MonoBehaviour:
   blinkSpeed: 5
   showRadialRing: 1
   radialRingRadius: 3.5
-  ringSegments: 64
+  radialRingSegments: 64
 --- !u!4 &1740470148
 Transform:
   m_ObjectHideFlags: 0
@@ -5245,7 +5321,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 6572007167009767365, guid: d484d397f430c93478ffd64446f9cc83, type: 3}
       propertyPath: m_LocalPosition.x
-      value: 7.6
+      value: 9.89
       objectReference: {fileID: 0}
     - target: {fileID: 6572007167009767365, guid: d484d397f430c93478ffd64446f9cc83, type: 3}
       propertyPath: m_LocalPosition.y

@@ -4,54 +4,92 @@ using UnityEngine;
 
 public class TurretFireManager : MonoBehaviour
 {
+    [System.Serializable]
+    public class DifficultySettings
+    {
+        [Header("Fire Count")]
+        public int minFireCount = 1;
+        public int maxFireCount = 2;
+
+        [Header("Fire Interval")]
+        public float minInterval = 3.5f;
+        public float maxInterval = 5f;
+    }
+
     [Header("References")]
-    [Tooltip("관리할 BulletSpawner들을 등록하세요. 비워두면 자동 검색합니다.")]
     [SerializeField]
-    private List<BulletSpawner> spawners = new List<BulletSpawner>();
+    private List<BulletSpawner> spawners =
+        new List<BulletSpawner>();
 
-    [Header("Wave Settings")]
-    [Tooltip("한 웨이브에서 발사할 터렛 최소 개수")]
-    [Min(1)]
-    [SerializeField] private int minFireCount = 1;
+    [Header("Level Difficulty")]
+    [SerializeField]
+    private List<DifficultySettings> levelDifficulties =
+        new List<DifficultySettings>()
+        {
+            new DifficultySettings
+            {
+                minFireCount = 1,
+                maxFireCount = 2,
+                minInterval = 3.5f,
+                maxInterval = 5f
+            },
 
-    [Tooltip("한 웨이브에서 발사할 터렛 최대 개수")]
-    [Min(1)]
-    [SerializeField] private int maxFireCount = 2;
+            new DifficultySettings
+            {
+                minFireCount = 2,
+                maxFireCount = 2,
+                minInterval = 2.5f,
+                maxInterval = 4f
+            },
 
-    [Tooltip("다음 웨이브까지 최소 대기시간")]
-    [Min(0.1f)]
-    [SerializeField] private float minInterval = 2.5f;
+            new DifficultySettings
+            {
+                minFireCount = 2,
+                maxFireCount = 3,
+                minInterval = 1.8f,
+                maxInterval = 3f
+            }
+        };
 
-    [Tooltip("다음 웨이브까지 최대 대기시간")]
-    [Min(0.1f)]
-    [SerializeField] private float maxInterval = 4f;
-
-    [Header("Telegraph Settings")]
-    [Tooltip("탄환 발사 전에 전조를 보여주는 시간")]
-    [Min(0f)]
-    [SerializeField] private float telegraphDuration = 0.8f;
+    [Header("Telegraph")]
+    [SerializeField]
+    private float telegraphDuration = 0.8f;
 
     [Header("Startup")]
-    [Tooltip("게임 시작 후 첫 웨이브까지 대기시간")]
-    [Min(0f)]
-    [SerializeField] private float startDelay = 1f;
+    [SerializeField]
+    private float startDelay = 1f;
+
+    private int currentMinFireCount = 1;
+    private int currentMaxFireCount = 2;
+
+    private float currentMinInterval = 3.5f;
+    private float currentMaxInterval = 5f;
 
     private Coroutine fireRoutine;
-    private bool isRunning;
-    private bool hasInitialized;
+
+    private bool initialized;
+
+    // =====================================================
+    // UNITY
+    // =====================================================
 
     private void Start()
     {
         InitializeSpawners();
-        hasInitialized = true;
+
+        initialized = true;
+
+        ApplyLevelDifficulty(1);
+
         StartFireRoutine();
     }
 
+    // =====================================================
+    // INITIALIZE
+    // =====================================================
+
     private void InitializeSpawners()
     {
-        if (spawners == null)
-            spawners = new List<BulletSpawner>();
-
         if (spawners.Count == 0)
         {
             BulletSpawner[] found =
@@ -62,143 +100,235 @@ public class TurretFireManager : MonoBehaviour
             spawners.AddRange(found);
         }
 
-        // TurretFireManager가 전체 발사 타이밍을 관리하므로
-        // 각 BulletSpawner의 개별 자동 발사는 꺼둡니다.
-        foreach (BulletSpawner spawner in spawners)
+        foreach (
+            BulletSpawner spawner
+            in spawners
+        )
         {
-            if (spawner != null)
-                spawner.SetAutoFire(false);
+            if (spawner == null)
+                continue;
+
+            spawner.SetAutoFire(
+                false
+            );
         }
 
         Debug.Log(
-            $"[TurretFireManager] 등록된 터렛 스포너: {spawners.Count}"
+            $"[TurretFireManager] " +
+            $"BulletSpawner {spawners.Count}개 등록"
         );
     }
 
+    // =====================================================
+    // LEVEL DIFFICULTY
+    // =====================================================
+
+    public void ApplyLevelDifficulty(
+        int level)
+    {
+        if (
+            levelDifficulties == null ||
+            levelDifficulties.Count == 0
+        )
+        {
+            Debug.LogWarning(
+                "[TurretFireManager] " +
+                "Level Difficulty 설정이 없습니다."
+            );
+
+            return;
+        }
+
+        int index =
+            Mathf.Clamp(
+                level - 1,
+                0,
+                levelDifficulties.Count - 1
+            );
+
+        DifficultySettings setting =
+            levelDifficulties[index];
+
+        currentMinFireCount =
+            Mathf.Max(
+                1,
+                setting.minFireCount
+            );
+
+        currentMaxFireCount =
+            Mathf.Max(
+                currentMinFireCount,
+                setting.maxFireCount
+            );
+
+        currentMinInterval =
+            Mathf.Max(
+                0.1f,
+                setting.minInterval
+            );
+
+        currentMaxInterval =
+            Mathf.Max(
+                currentMinInterval,
+                setting.maxInterval
+            );
+
+        Debug.Log(
+            $"[TurretFireManager] LEVEL {level} 적용 / " +
+            $"Turret {currentMinFireCount}~{currentMaxFireCount} / " +
+            $"Interval {currentMinInterval}~{currentMaxInterval}s"
+        );
+    }
+
+    // =====================================================
+    // FIRE ROUTINE
+    // =====================================================
+
     private void StartFireRoutine()
     {
-        if (isRunning)
-            return;
+        if (fireRoutine != null)
+        {
+            StopCoroutine(
+                fireRoutine
+            );
+        }
 
-        isRunning = true;
-        fireRoutine = StartCoroutine(FireRoutine());
+        fireRoutine =
+            StartCoroutine(
+                FireRoutine()
+            );
     }
 
     private IEnumerator FireRoutine()
     {
-        if (startDelay > 0f)
-            yield return new WaitForSeconds(startDelay);
+        yield return new WaitForSeconds(
+            startDelay
+        );
 
-        while (isRunning)
+        while (true)
         {
             FireRandomTurrets();
 
-            float min = Mathf.Max(0.1f, minInterval);
-            float max = Mathf.Max(min, maxInterval);
-            float waitTime = Random.Range(min, max);
+            float waitTime =
+                Random.Range(
+                    currentMinInterval,
+                    currentMaxInterval
+                );
 
-            yield return new WaitForSeconds(waitTime);
+            yield return new WaitForSeconds(
+                waitTime
+            );
         }
-
-        fireRoutine = null;
     }
+
+    // =====================================================
+    // RANDOM FIRE
+    // =====================================================
 
     private void FireRandomTurrets()
     {
-        List<BulletSpawner> available = new List<BulletSpawner>();
+        List<BulletSpawner> available =
+            new List<BulletSpawner>();
 
-        foreach (BulletSpawner spawner in spawners)
+        foreach (
+            BulletSpawner spawner
+            in spawners
+        )
         {
-            if (spawner != null &&
+            if (
+                spawner != null &&
                 spawner.gameObject.activeInHierarchy &&
-                !spawner.IsBusy)
+                !spawner.IsBusy
+            )
             {
-                available.Add(spawner);
+                available.Add(
+                    spawner
+                );
             }
         }
 
         if (available.Count == 0)
-        {
-            Debug.Log("[TurretFireManager] 발사 가능한 터렛이 없습니다.");
             return;
-        }
 
-        int minimum = Mathf.Clamp(
-            minFireCount,
-            1,
-            available.Count
+        int minimum =
+            Mathf.Clamp(
+                currentMinFireCount,
+                1,
+                available.Count
+            );
+
+        int maximum =
+            Mathf.Clamp(
+                currentMaxFireCount,
+                minimum,
+                available.Count
+            );
+
+        int fireCount =
+            Random.Range(
+                minimum,
+                maximum + 1
+            );
+
+        Shuffle(
+            available
         );
 
-        int maximum = Mathf.Clamp(
-            maxFireCount,
-            minimum,
-            available.Count
-        );
-
-        int fireCount = Random.Range(minimum, maximum + 1);
-
-        Shuffle(available);
-
-        for (int i = 0; i < fireCount; i++)
+        for (
+            int i = 0;
+            i < fireCount;
+            i++
+        )
         {
-            available[i].FireWithTelegraph(telegraphDuration);
-        }
-
-        Debug.Log(
-            $"[TurretFireManager] 이번 웨이브 발사 터렛: {fireCount}개"
-        );
-    }
-
-    private void Shuffle(List<BulletSpawner> list)
-    {
-        for (int i = list.Count - 1; i > 0; i--)
-        {
-            int randomIndex = Random.Range(0, i + 1);
-
-            BulletSpawner temp = list[i];
-            list[i] = list[randomIndex];
-            list[randomIndex] = temp;
+            available[i]
+                .FireWithTelegraph(
+                    telegraphDuration
+                );
         }
     }
 
-    public void SetSpawnerList(List<BulletSpawner> newSpawners)
-    {
-        spawners = newSpawners ?? new List<BulletSpawner>();
+    // =====================================================
+    // SHUFFLE
+    // =====================================================
 
-        foreach (BulletSpawner spawner in spawners)
+    private void Shuffle(
+        List<BulletSpawner> list)
+    {
+        for (
+            int i =
+                list.Count - 1;
+            i > 0;
+            i--
+        )
         {
-            if (spawner != null)
-                spawner.SetAutoFire(false);
+            int randomIndex =
+                Random.Range(
+                    0,
+                    i + 1
+                );
+
+            BulletSpawner temp =
+                list[i];
+
+            list[i] =
+                list[randomIndex];
+
+            list[randomIndex] =
+                temp;
         }
     }
 
-    private void OnDisable()
-    {
-        isRunning = false;
-
-        if (fireRoutine != null)
-        {
-            StopCoroutine(fireRoutine);
-            fireRoutine = null;
-        }
-    }
-
-    private void OnEnable()
-    {
-        // Start 이전의 최초 OnEnable에서는 실행하지 않습니다.
-        // Start 이후 비활성화/활성화되는 경우에만 재시작합니다.
-        if (hasInitialized && !isRunning)
-            StartFireRoutine();
-    }
+    // =====================================================
+    // CLEANUP
+    // =====================================================
 
     private void OnDestroy()
     {
-        isRunning = false;
-
         if (fireRoutine != null)
         {
-            StopCoroutine(fireRoutine);
-            fireRoutine = null;
+            StopCoroutine(
+                fireRoutine
+            );
         }
     }
 }

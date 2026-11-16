@@ -9,7 +9,8 @@ public class BulletSpawner : MonoBehaviour
     {
         Single,
         Spread,
-        Radial
+        Radial,
+        Spiral
     }
 
     [Header("References")]
@@ -25,72 +26,112 @@ public class BulletSpawner : MonoBehaviour
     [SerializeField] private bool preventSamePattern = true;
     [SerializeField] private FirePattern firePattern = FirePattern.Single;
 
-    [Header("Pattern Materials")]
+    [Header("Single Visual")]
     [SerializeField] private Material singleMaterial;
-    [SerializeField] private Material spreadMaterial;
-    [SerializeField] private Material radialMaterial;
+    [SerializeField]
+    private Color singleColor =
+        new Color(0.1f, 0.85f, 1f, 1f);
 
-    [Header("Pattern Colors")]
-    [SerializeField] private Color singleColor = Color.cyan;
-    [SerializeField] private Color spreadColor = new Color(1f, 0.35f, 0.05f);
-    [SerializeField] private Color radialColor = Color.magenta;
+    [Header("Spread Visual")]
+    [SerializeField] private Material spreadMaterial;
+    [SerializeField]
+    private Color spreadColor =
+        new Color(1f, 0.35f, 0.05f, 1f);
+
+    [Header("Radial Visual")]
+    [SerializeField] private Material radialMaterial;
+    [SerializeField]
+    private Color radialColor =
+        new Color(1f, 0.1f, 0.9f, 1f);
+
+    [Header("Spiral Visual")]
+    [Tooltip("비워두면 Radial Material을 사용합니다.")]
+    [SerializeField] private Material spiralMaterial;
+
+    [SerializeField]
+    private Color spiralColor =
+        new Color(0.25f, 1f, 0.55f, 1f);
 
     [Header("Single Burst")]
-    [Min(1)]
     [SerializeField] private int singleBurstCount = 3;
-    [Min(0.05f)]
     [SerializeField] private float burstShotInterval = 0.2f;
 
-    [Header("Spread Settings")]
-    [Min(1)]
+    [Header("Spread")]
     [SerializeField] private int spreadBulletCount = 5;
-    [Range(1f, 180f)]
     [SerializeField] private float spreadAngle = 45f;
 
-    [Header("Radial Settings")]
-    [Min(1)]
+    [Header("Radial")]
     [SerializeField] private int radialBulletCount = 12;
 
-    [Header("Telegraph Settings")]
+    [Header("Spiral")]
+    [Tooltip("한 번의 Spiral 공격에서 반복 발사되는 횟수")]
+    [SerializeField] private int spiralWaveCount = 5;
+
+    [Tooltip("한 Wave에서 발사할 탄환 수")]
+    [SerializeField] private int spiralBulletCount = 8;
+
+    [Tooltip("다음 Wave마다 회전할 각도")]
+    [SerializeField] private float spiralRotationStep = 12f;
+
+    [Tooltip("Spiral Wave 사이의 발사 간격")]
+    [SerializeField] private float spiralShotInterval = 0.12f;
+
+    [Header("Telegraph")]
     [SerializeField] private bool useTelegraph = true;
+
     [SerializeField] private float singleTelegraphLength = 40f;
     [SerializeField] private float spreadTelegraphLength = 30f;
     [SerializeField] private float radialTelegraphLength = 14f;
+    [SerializeField] private float spiralTelegraphLength = 14f;
+
     [SerializeField] private float telegraphHeightOffset = 0.15f;
 
-    [Header("Neon Appearance")]
+    [Header("Neon Telegraph")]
     [SerializeField] private float glowWidth = 0.18f;
     [SerializeField] private float coreWidth = 0.055f;
+
+    [Range(0f, 1f)]
     [SerializeField] private float glowAlpha = 0.28f;
+
+    [Range(0f, 1f)]
     [SerializeField] private float coreAlpha = 1f;
+
     [SerializeField] private float glowIntensity = 2.5f;
     [SerializeField] private float blinkSpeed = 5f;
 
-    [Header("Radial Telegraph")]
+    [Header("Radial Ring")]
     [SerializeField] private bool showRadialRing = true;
     [SerializeField] private float radialRingRadius = 3.5f;
-    [Range(16, 128)]
-    [SerializeField] private int ringSegments = 64;
+    [SerializeField] private int radialRingSegments = 64;
 
-    private float spawnTimer;
     private FirePattern lastPattern;
     private bool hasLastPattern;
-    private bool isBusy;
-    private Coroutine fireRoutine;
-    private Material telegraphMaterial;
-    private Color activeTelegraphColor;
 
-    private readonly List<TelegraphPair> telegraphLines =
-        new List<TelegraphPair>();
+    private bool isBusy;
+
+    private float autoFireTimer;
+
+    private Material telegraphMaterial;
+
+    private readonly List<LineRenderer>
+        telegraphGlowLines =
+            new List<LineRenderer>();
+
+    private readonly List<LineRenderer>
+        telegraphCoreLines =
+            new List<LineRenderer>();
+
+    private LineRenderer radialGlowRing;
+    private LineRenderer radialCoreRing;
 
     public bool IsBusy => isBusy;
-    public FirePattern LastPattern => lastPattern;
 
-    private class TelegraphPair
-    {
-        public LineRenderer glow;
-        public LineRenderer core;
-    }
+    public FirePattern LastPattern =>
+        lastPattern;
+
+    // =====================================================
+    // UNITY
+    // =====================================================
 
     private void Awake()
     {
@@ -104,24 +145,36 @@ public class BulletSpawner : MonoBehaviour
 
     private void Update()
     {
-        if (!autoFire || isBusy)
+        if (!autoFire)
             return;
 
-        spawnTimer += Time.deltaTime;
+        if (isBusy)
+            return;
 
-        if (spawnTimer >= Mathf.Max(0.05f, spawnInterval))
+        autoFireTimer +=
+            Time.deltaTime;
+
+        if (autoFireTimer >= spawnInterval)
         {
-            spawnTimer = 0f;
-            FireWithTelegraph(0f);
+            autoFireTimer = 0f;
+
+            FireOnce();
         }
     }
 
+    // =====================================================
+    // PLAYER
+    // =====================================================
+
     private void ResolvePlayer()
     {
-        if (player != null && player.gameObject.activeInHierarchy)
+        if (player != null)
             return;
 
-        GameObject playerObject = GameObject.FindGameObjectWithTag("Player");
+        GameObject playerObject =
+            GameObject.FindGameObjectWithTag(
+                "Player"
+            );
 
         if (playerObject == null)
             return;
@@ -132,337 +185,1117 @@ public class BulletSpawner : MonoBehaviour
         if (controller == null)
         {
             controller =
-                playerObject.GetComponentInChildren<CharacterController>(true);
+                playerObject
+                    .GetComponentInChildren<CharacterController>();
         }
 
-        player = controller != null
-            ? controller.transform
-            : playerObject.transform;
+        if (controller != null)
+        {
+            player =
+                controller.transform;
+        }
+        else
+        {
+            player =
+                playerObject.transform;
+        }
     }
 
-    private bool TryGetPlayerDirection(out Vector3 direction)
+    private bool TryGetPlayerDirection(
+        out Vector3 direction)
     {
-        direction = Vector3.zero;
+        direction =
+            transform.forward;
 
-        if (player == null || !player.gameObject.activeInHierarchy)
+        if (player == null)
+        {
             ResolvePlayer();
+        }
 
         if (player == null)
             return false;
 
-        direction = player.position - transform.position;
-        direction.y = 0f;
+        Vector3 targetPosition =
+            player.position;
 
-        if (direction.sqrMagnitude <= 0.0001f)
+        Vector3 spawnPosition =
+            transform.position;
+
+        targetPosition.y =
+            spawnPosition.y;
+
+        direction =
+            targetPosition -
+            spawnPosition;
+
+        if (direction.sqrMagnitude <= 0.001f)
             return false;
 
         direction.Normalize();
+
         return true;
     }
 
-    private void CreateTelegraphMaterial()
-    {
-        Shader shader = Shader.Find("DodgeRush/NeonTelegraph");
+    // =====================================================
+    // FIRE ENTRY
+    // =====================================================
 
-        if (shader == null)
-        {
-            shader = Shader.Find("Universal Render Pipeline/Unlit");
-        }
-
-        if (shader == null)
-        {
-            shader = Shader.Find("Sprites/Default");
-        }
-
-        if (shader == null)
-        {
-            Debug.LogWarning(
-                "[BulletSpawner] 전조용 Shader를 찾지 못했습니다. " +
-                "전조 선은 표시되지 않지만 탄환 발사는 진행됩니다."
-            );
-            return;
-        }
-
-        telegraphMaterial = new Material(shader);
-        telegraphMaterial.name = "Runtime_Neon_Telegraph";
-
-        if (telegraphMaterial.HasProperty("_Intensity"))
-            telegraphMaterial.SetFloat("_Intensity", glowIntensity);
-
-        if (telegraphMaterial.HasProperty("_BaseColor"))
-            telegraphMaterial.SetColor("_BaseColor", Color.white);
-
-        if (telegraphMaterial.HasProperty("_Color"))
-            telegraphMaterial.SetColor("_Color", Color.white);
-    }
-
-    // 기존 호출부와의 호환성을 위해 유지합니다.
-    // FireOnce는 전조 없이 해당 패턴을 즉시 시작합니다.
     public void FireOnce()
     {
-        FireWithTelegraph(0f);
+        FireWithTelegraph(
+            0f
+        );
     }
 
-    // TurretFireManager에서 호출합니다.
-    public void FireWithTelegraph(float duration)
+    public void FireWithTelegraph(
+        float telegraphDuration)
     {
         if (isBusy)
             return;
 
-        if (bulletPrefab == null)
-        {
-            Debug.LogWarning($"[{name}] Bullet Prefab이 연결되지 않았습니다.");
-            return;
-        }
+        FirePattern selectedPattern =
+            SelectPattern();
 
-        FirePattern selectedPattern = SelectPattern();
-
-        if (selectedPattern == FirePattern.Single)
+        if (
+            selectedPattern == FirePattern.Single ||
+            selectedPattern == FirePattern.Spread
+        )
         {
-            if (!TryGetPlayerDirection(out _))
+            if (
+                !TryGetPlayerDirection(
+                    out _
+                )
+            )
             {
-                Debug.LogWarning($"[{name}] Player를 찾지 못해 발사를 취소합니다.");
-                return;
-            }
-        }
-        else if (selectedPattern == FirePattern.Spread)
-        {
-            if (!TryGetPlayerDirection(out _))
-            {
-                Debug.LogWarning($"[{name}] Player를 찾지 못해 발사를 취소합니다.");
                 return;
             }
         }
 
-        lastPattern = selectedPattern;
-        hasLastPattern = true;
-        isBusy = true;
+        lastPattern =
+            selectedPattern;
 
-        float actualTelegraphDuration =
-            useTelegraph ? Mathf.Max(0f, duration) : 0f;
+        hasLastPattern =
+            true;
 
-        fireRoutine = StartCoroutine(
-            FireSequence(selectedPattern, actualTelegraphDuration)
+        StartCoroutine(
+            FireSequence(
+                selectedPattern,
+                telegraphDuration
+            )
         );
     }
+
+    // =====================================================
+    // PATTERN SELECTION
+    // =====================================================
 
     private FirePattern SelectPattern()
     {
         if (!randomPattern)
-            return firePattern;
-
-        int patternCount = 3;
-
-        if (preventSamePattern && hasLastPattern)
         {
-            int lastIndex = (int)lastPattern;
-            int randomIndex = Random.Range(0, patternCount - 1);
-
-            if (randomIndex >= lastIndex)
-                randomIndex++;
-
-            return (FirePattern)randomIndex;
+            return firePattern;
         }
 
-        return (FirePattern)Random.Range(0, patternCount);
+        int patternCount =
+            System.Enum.GetValues(
+                typeof(FirePattern)
+            ).Length;
+
+        FirePattern selected;
+
+        int safety =
+            0;
+
+        do
+        {
+            selected =
+                (FirePattern)Random.Range(
+                    0,
+                    patternCount
+                );
+
+            safety++;
+        }
+        while (
+            preventSamePattern &&
+            hasLastPattern &&
+            selected == lastPattern &&
+            safety < 20
+        );
+
+        return selected;
     }
+
+    // =====================================================
+    // FIRE SEQUENCE
+    // =====================================================
 
     private IEnumerator FireSequence(
         FirePattern pattern,
         float telegraphDuration)
     {
-        List<Vector3> directions = BuildPatternDirections(pattern);
+        isBusy =
+            true;
 
-        if (directions.Count == 0)
+        if (
+            useTelegraph &&
+            telegraphDuration > 0f
+        )
         {
-            FinishFiring();
-            yield break;
+            yield return StartCoroutine(
+                TelegraphRoutine(
+                    pattern,
+                    telegraphDuration
+                )
+            );
         }
 
-        if (telegraphDuration > 0f)
-        {
-            ShowTelegraph(pattern, directions);
-
-            float elapsed = 0f;
-
-            while (elapsed < telegraphDuration)
-            {
-                // Single은 전조 중에도 현재 플레이어 위치를 따라 조준합니다.
-                if (pattern == FirePattern.Single &&
-                    TryGetPlayerDirection(out Vector3 currentDirection))
-                {
-                    directions[0] = currentDirection;
-                    UpdateSingleTelegraph(currentDirection);
-                }
-
-                UpdateTelegraphPulse();
-
-                elapsed += Time.deltaTime;
-                yield return null;
-            }
-        }
-
-        ClearTelegraph();
+        HideTelegraph();
 
         switch (pattern)
         {
             case FirePattern.Single:
-                yield return FireSingleBurst();
+
+                yield return StartCoroutine(
+                    FireSingleBurst()
+                );
+
                 break;
 
             case FirePattern.Spread:
-                FireDirections(directions, FirePattern.Spread);
+
+                FireSpread();
+
                 break;
 
             case FirePattern.Radial:
-                FireDirections(directions, FirePattern.Radial);
+
+                FireRadial();
+
+                break;
+
+            case FirePattern.Spiral:
+
+                yield return StartCoroutine(
+                    FireSpiral()
+                );
+
                 break;
         }
 
-        FinishFiring();
+        isBusy =
+            false;
     }
 
-    private List<Vector3> BuildPatternDirections(FirePattern pattern)
-    {
-        List<Vector3> directions = new List<Vector3>();
-
-        switch (pattern)
-        {
-            case FirePattern.Single:
-                {
-                    if (TryGetPlayerDirection(out Vector3 direction))
-                        directions.Add(direction);
-
-                    break;
-                }
-
-            case FirePattern.Spread:
-                {
-                    if (!TryGetPlayerDirection(out Vector3 centerDirection))
-                        break;
-
-                    int count = Mathf.Max(1, spreadBulletCount);
-
-                    if (count == 1)
-                    {
-                        directions.Add(centerDirection);
-                        break;
-                    }
-
-                    float startAngle = -spreadAngle * 0.5f;
-                    float angleStep = spreadAngle / (count - 1);
-
-                    for (int i = 0; i < count; i++)
-                    {
-                        float angle = startAngle + angleStep * i;
-
-                        Vector3 direction =
-                            Quaternion.Euler(0f, angle, 0f) * centerDirection;
-
-                        directions.Add(direction.normalized);
-                    }
-
-                    break;
-                }
-
-            case FirePattern.Radial:
-                {
-                    int count = Mathf.Max(1, radialBulletCount);
-                    float angleStep = 360f / count;
-
-                    for (int i = 0; i < count; i++)
-                    {
-                        float angle = angleStep * i;
-
-                        Vector3 direction =
-                            Quaternion.Euler(0f, angle, 0f) * Vector3.forward;
-
-                        directions.Add(direction.normalized);
-                    }
-
-                    break;
-                }
-        }
-
-        return directions;
-    }
+    // =====================================================
+    // SINGLE
+    // =====================================================
 
     private IEnumerator FireSingleBurst()
     {
-        int shotCount = Mathf.Max(1, singleBurstCount);
+        int count =
+            Mathf.Max(
+                1,
+                singleBurstCount
+            );
 
-        for (int i = 0; i < shotCount; i++)
+        for (
+            int i = 0;
+            i < count;
+            i++
+        )
         {
-            // 매 탄환 발사 순간 플레이어 방향을 다시 계산합니다.
-            // 이미 발사된 탄환은 Bullet 스크립트에 따라 직선 이동합니다.
-            if (TryGetPlayerDirection(out Vector3 direction))
+            if (
+                TryGetPlayerDirection(
+                    out Vector3 direction
+                )
+            )
             {
-                SpawnBullet(direction, FirePattern.Single);
+                SpawnBullet(
+                    direction,
+                    FirePattern.Single
+                );
             }
 
-            if (i < shotCount - 1)
+            if (
+                i <
+                count - 1
+            )
             {
                 yield return new WaitForSeconds(
-                    Mathf.Max(0.05f, burstShotInterval)
+                    Mathf.Max(
+                        0f,
+                        burstShotInterval
+                    )
                 );
             }
         }
     }
 
-    private void FireDirections(
-        List<Vector3> directions,
-        FirePattern pattern)
+    // =====================================================
+    // SPREAD
+    // =====================================================
+
+    private void FireSpread()
     {
-        foreach (Vector3 direction in directions)
-            SpawnBullet(direction, pattern);
-    }
-
-    private void SpawnBullet(Vector3 direction, FirePattern pattern)
-    {
-        if (bulletPrefab == null || direction.sqrMagnitude <= 0.0001f)
-            return;
-
-        Bullet bullet = Instantiate(
-            bulletPrefab,
-            transform.position,
-            Quaternion.identity
-        );
-
-        BulletVisual visual = bullet.GetComponent<BulletVisual>();
-
-        if (visual == null)
-            visual = bullet.GetComponentInChildren<BulletVisual>();
-
-        if (visual != null)
+        if (
+            !TryGetPlayerDirection(
+                out Vector3 centerDirection
+            )
+        )
         {
-            visual.ApplyVisual(
-                GetPatternMaterial(pattern),
-                GetPatternColor(pattern)
-            );
+            return;
         }
 
-        bullet.Initialize(direction.normalized);
+        int count =
+            Mathf.Max(
+                1,
+                spreadBulletCount
+            );
+
+        if (count == 1)
+        {
+            SpawnBullet(
+                centerDirection,
+                FirePattern.Spread
+            );
+
+            return;
+        }
+
+        float startAngle =
+            -spreadAngle * 0.5f;
+
+        float angleStep =
+            spreadAngle /
+            (count - 1);
+
+        for (
+            int i = 0;
+            i < count;
+            i++
+        )
+        {
+            float angle =
+                startAngle +
+                angleStep * i;
+
+            Vector3 direction =
+                Quaternion.Euler(
+                    0f,
+                    angle,
+                    0f
+                ) *
+                centerDirection;
+
+            SpawnBullet(
+                direction,
+                FirePattern.Spread
+            );
+        }
     }
 
-    private Material GetPatternMaterial(FirePattern pattern)
+    // =====================================================
+    // RADIAL
+    // =====================================================
+
+    private void FireRadial()
     {
+        int count =
+            Mathf.Max(
+                1,
+                radialBulletCount
+            );
+
+        float step =
+            360f /
+            count;
+
+        for (
+            int i = 0;
+            i < count;
+            i++
+        )
+        {
+            float angle =
+                step * i;
+
+            Vector3 direction =
+                Quaternion.Euler(
+                    0f,
+                    angle,
+                    0f
+                ) *
+                Vector3.forward;
+
+            SpawnBullet(
+                direction,
+                FirePattern.Radial
+            );
+        }
+    }
+
+    // =====================================================
+    // SPIRAL
+    // =====================================================
+
+    private IEnumerator FireSpiral()
+    {
+        int waveCount =
+            Mathf.Max(
+                1,
+                spiralWaveCount
+            );
+
+        int bulletCount =
+            Mathf.Max(
+                1,
+                spiralBulletCount
+            );
+
+        float bulletAngleStep =
+            360f /
+            bulletCount;
+
+        float currentOffset =
+            Random.Range(
+                0f,
+                360f
+            );
+
+        for (
+            int wave = 0;
+            wave < waveCount;
+            wave++
+        )
+        {
+            for (
+                int i = 0;
+                i < bulletCount;
+                i++
+            )
+            {
+                float angle =
+                    currentOffset +
+                    bulletAngleStep * i;
+
+                Vector3 direction =
+                    Quaternion.Euler(
+                        0f,
+                        angle,
+                        0f
+                    ) *
+                    Vector3.forward;
+
+                SpawnBullet(
+                    direction,
+                    FirePattern.Spiral
+                );
+            }
+
+            currentOffset +=
+                spiralRotationStep;
+
+            if (
+                wave <
+                waveCount - 1
+            )
+            {
+                yield return new WaitForSeconds(
+                    Mathf.Max(
+                        0f,
+                        spiralShotInterval
+                    )
+                );
+            }
+        }
+    }
+
+    // =====================================================
+    // BULLET SPAWN
+    // =====================================================
+
+    private void SpawnBullet(
+        Vector3 direction,
+        FirePattern pattern)
+    {
+        if (bulletPrefab == null)
+            return;
+
+        Bullet bullet =
+            Instantiate(
+                bulletPrefab,
+                transform.position,
+                Quaternion.identity
+            );
+
+        ApplyBulletVisual(
+            bullet,
+            pattern
+        );
+
+        bullet.Initialize(
+            direction.normalized
+        );
+    }
+
+    // =====================================================
+    // BULLET VISUAL
+    // =====================================================
+
+    private void ApplyBulletVisual(
+        Bullet bullet,
+        FirePattern pattern)
+    {
+        if (bullet == null)
+            return;
+
+        BulletVisual visual =
+            bullet.GetComponent<BulletVisual>();
+
+        if (visual == null)
+        {
+            visual =
+                bullet.GetComponentInChildren<BulletVisual>();
+        }
+
+        if (visual == null)
+            return;
+
+        Material material =
+            null;
+
+        Color color =
+            Color.white;
+
         switch (pattern)
         {
             case FirePattern.Single:
-                return singleMaterial;
+
+                material =
+                    singleMaterial;
+
+                color =
+                    singleColor;
+
+                break;
 
             case FirePattern.Spread:
-                return spreadMaterial;
+
+                material =
+                    spreadMaterial;
+
+                color =
+                    spreadColor;
+
+                break;
 
             case FirePattern.Radial:
-                return radialMaterial;
 
-            default:
-                return null;
+                material =
+                    radialMaterial;
+
+                color =
+                    radialColor;
+
+                break;
+
+            case FirePattern.Spiral:
+
+                material =
+                    spiralMaterial != null
+                        ? spiralMaterial
+                        : radialMaterial;
+
+                color =
+                    spiralColor;
+
+                break;
+        }
+
+        visual.ApplyVisual(
+            material,
+            color
+        );
+    }
+
+    // =====================================================
+    // TELEGRAPH
+    // =====================================================
+
+    private IEnumerator TelegraphRoutine(
+        FirePattern pattern,
+        float duration)
+    {
+        float elapsed =
+            0f;
+
+        CreateTelegraphForPattern(
+            pattern
+        );
+
+        while (
+            elapsed <
+            duration
+        )
+        {
+            float progress =
+                Mathf.Clamp01(
+                    elapsed /
+                    duration
+                );
+
+            UpdateTelegraph(
+                pattern,
+                progress
+            );
+
+            elapsed +=
+                Time.deltaTime;
+
+            yield return null;
         }
     }
 
-    private Color GetPatternColor(FirePattern pattern)
+    private void CreateTelegraphForPattern(
+        FirePattern pattern)
+    {
+        HideTelegraph();
+
+        switch (pattern)
+        {
+            case FirePattern.Single:
+
+                CreateLinePair();
+
+                break;
+
+            case FirePattern.Spread:
+
+                for (
+                    int i = 0;
+                    i <
+                    Mathf.Max(
+                        1,
+                        spreadBulletCount
+                    );
+                    i++
+                )
+                {
+                    CreateLinePair();
+                }
+
+                break;
+
+            case FirePattern.Radial:
+
+                for (
+                    int i = 0;
+                    i <
+                    Mathf.Max(
+                        1,
+                        radialBulletCount
+                    );
+                    i++
+                )
+                {
+                    CreateLinePair();
+                }
+
+                CreateRadialRing();
+
+                break;
+
+            case FirePattern.Spiral:
+
+                for (
+                    int i = 0;
+                    i <
+                    Mathf.Max(
+                        1,
+                        spiralBulletCount
+                    );
+                    i++
+                )
+                {
+                    CreateLinePair();
+                }
+
+                CreateRadialRing();
+
+                break;
+        }
+    }
+
+    private void UpdateTelegraph(
+        FirePattern pattern,
+        float progress)
+    {
+        Color patternColor =
+            GetPatternColor(
+                pattern
+            );
+
+        float blink =
+            0.65f +
+            Mathf.Sin(
+                Time.time *
+                blinkSpeed *
+                Mathf.PI *
+                2f
+            ) *
+            0.35f;
+
+        Color glowColor =
+            patternColor;
+
+        glowColor.a =
+            glowAlpha *
+            blink;
+
+        Color coreColor =
+            patternColor;
+
+        coreColor.a =
+            coreAlpha;
+
+        switch (pattern)
+        {
+            case FirePattern.Single:
+
+                UpdateSingleTelegraph();
+
+                break;
+
+            case FirePattern.Spread:
+
+                UpdateSpreadTelegraph();
+
+                break;
+
+            case FirePattern.Radial:
+
+                UpdateRadialTelegraph(
+                    0f
+                );
+
+                break;
+
+            case FirePattern.Spiral:
+
+                float rotation =
+                    Time.time *
+                    90f;
+
+                UpdateRadialTelegraph(
+                    rotation
+                );
+
+                break;
+        }
+
+        UpdateLineColors(
+            glowColor,
+            coreColor
+        );
+
+        UpdateRingColors(
+            glowColor,
+            coreColor
+        );
+    }
+
+    // =====================================================
+    // SINGLE TELEGRAPH
+    // =====================================================
+
+    private void UpdateSingleTelegraph()
+    {
+        if (
+            telegraphGlowLines.Count <
+            1
+        )
+        {
+            return;
+        }
+
+        if (
+            !TryGetPlayerDirection(
+                out Vector3 direction
+            )
+        )
+        {
+            return;
+        }
+
+        SetLinePair(
+            0,
+            direction,
+            singleTelegraphLength
+        );
+    }
+
+    // =====================================================
+    // SPREAD TELEGRAPH
+    // =====================================================
+
+    private void UpdateSpreadTelegraph()
+    {
+        if (
+            !TryGetPlayerDirection(
+                out Vector3 centerDirection
+            )
+        )
+        {
+            return;
+        }
+
+        int count =
+            telegraphGlowLines.Count;
+
+        if (count <= 0)
+            return;
+
+        if (count == 1)
+        {
+            SetLinePair(
+                0,
+                centerDirection,
+                spreadTelegraphLength
+            );
+
+            return;
+        }
+
+        float startAngle =
+            -spreadAngle *
+            0.5f;
+
+        float step =
+            spreadAngle /
+            (count - 1);
+
+        for (
+            int i = 0;
+            i < count;
+            i++
+        )
+        {
+            float angle =
+                startAngle +
+                step * i;
+
+            Vector3 direction =
+                Quaternion.Euler(
+                    0f,
+                    angle,
+                    0f
+                ) *
+                centerDirection;
+
+            SetLinePair(
+                i,
+                direction,
+                spreadTelegraphLength
+            );
+        }
+    }
+
+    // =====================================================
+    // RADIAL / SPIRAL TELEGRAPH
+    // =====================================================
+
+    private void UpdateRadialTelegraph(
+        float angleOffset)
+    {
+        int count =
+            telegraphGlowLines.Count;
+
+        if (count <= 0)
+            return;
+
+        float step =
+            360f /
+            count;
+
+        float length =
+            lastPattern ==
+            FirePattern.Spiral
+                ? spiralTelegraphLength
+                : radialTelegraphLength;
+
+        for (
+            int i = 0;
+            i < count;
+            i++
+        )
+        {
+            float angle =
+                angleOffset +
+                step * i;
+
+            Vector3 direction =
+                Quaternion.Euler(
+                    0f,
+                    angle,
+                    0f
+                ) *
+                Vector3.forward;
+
+            SetLinePair(
+                i,
+                direction,
+                length
+            );
+        }
+    }
+
+    // =====================================================
+    // LINE CREATION
+    // =====================================================
+
+    private void CreateLinePair()
+    {
+        LineRenderer glow =
+            CreateLineRenderer(
+                "Telegraph_Glow",
+                glowWidth
+            );
+
+        LineRenderer core =
+            CreateLineRenderer(
+                "Telegraph_Core",
+                coreWidth
+            );
+
+        telegraphGlowLines.Add(
+            glow
+        );
+
+        telegraphCoreLines.Add(
+            core
+        );
+    }
+
+    private LineRenderer CreateLineRenderer(
+        string objectName,
+        float width)
+    {
+        GameObject lineObject =
+            new GameObject(
+                objectName
+            );
+
+        lineObject.transform.SetParent(
+            transform,
+            false
+        );
+
+        LineRenderer line =
+            lineObject.AddComponent<LineRenderer>();
+
+        line.material =
+            telegraphMaterial;
+
+        line.useWorldSpace =
+            true;
+
+        line.positionCount =
+            2;
+
+        line.startWidth =
+            width;
+
+        line.endWidth =
+            width;
+
+        line.numCapVertices =
+            4;
+
+        line.shadowCastingMode =
+            ShadowCastingMode.Off;
+
+        line.receiveShadows =
+            false;
+
+        return line;
+    }
+
+    private void SetLinePair(
+        int index,
+        Vector3 direction,
+        float length)
+    {
+        if (
+            index < 0 ||
+            index >=
+            telegraphGlowLines.Count ||
+            index >=
+            telegraphCoreLines.Count
+        )
+        {
+            return;
+        }
+
+        Vector3 start =
+            transform.position +
+            Vector3.up *
+            telegraphHeightOffset;
+
+        Vector3 end =
+            start +
+            direction.normalized *
+            length;
+
+        telegraphGlowLines[index]
+            .SetPosition(
+                0,
+                start
+            );
+
+        telegraphGlowLines[index]
+            .SetPosition(
+                1,
+                end
+            );
+
+        telegraphCoreLines[index]
+            .SetPosition(
+                0,
+                start
+            );
+
+        telegraphCoreLines[index]
+            .SetPosition(
+                1,
+                end
+            );
+    }
+
+    // =====================================================
+    // RADIAL RING
+    // =====================================================
+
+    private void CreateRadialRing()
+    {
+        if (!showRadialRing)
+            return;
+
+        radialGlowRing =
+            CreateRingRenderer(
+                "RadialRing_Glow",
+                glowWidth
+            );
+
+        radialCoreRing =
+            CreateRingRenderer(
+                "RadialRing_Core",
+                coreWidth
+            );
+
+        UpdateRingPositions(
+            radialGlowRing
+        );
+
+        UpdateRingPositions(
+            radialCoreRing
+        );
+    }
+
+    private LineRenderer CreateRingRenderer(
+        string name,
+        float width)
+    {
+        GameObject ringObject =
+            new GameObject(
+                name
+            );
+
+        ringObject.transform.SetParent(
+            transform,
+            false
+        );
+
+        LineRenderer ring =
+            ringObject.AddComponent<LineRenderer>();
+
+        ring.material =
+            telegraphMaterial;
+
+        ring.useWorldSpace =
+            true;
+
+        ring.loop =
+            true;
+
+        ring.positionCount =
+            Mathf.Max(
+                8,
+                radialRingSegments
+            );
+
+        ring.startWidth =
+            width;
+
+        ring.endWidth =
+            width;
+
+        ring.shadowCastingMode =
+            ShadowCastingMode.Off;
+
+        ring.receiveShadows =
+            false;
+
+        return ring;
+    }
+
+    private void UpdateRingPositions(
+        LineRenderer ring)
+    {
+        if (ring == null)
+            return;
+
+        int count =
+            ring.positionCount;
+
+        Vector3 center =
+            transform.position +
+            Vector3.up *
+            telegraphHeightOffset;
+
+        for (
+            int i = 0;
+            i < count;
+            i++
+        )
+        {
+            float angle =
+                (float)i /
+                count *
+                Mathf.PI *
+                2f;
+
+            Vector3 offset =
+                new Vector3(
+                    Mathf.Cos(angle),
+                    0f,
+                    Mathf.Sin(angle)
+                ) *
+                radialRingRadius;
+
+            ring.SetPosition(
+                i,
+                center + offset
+            );
+        }
+    }
+
+    // =====================================================
+    // COLORS
+    // =====================================================
+
+    private Color GetPatternColor(
+        FirePattern pattern)
     {
         switch (pattern)
         {
@@ -475,229 +1308,210 @@ public class BulletSpawner : MonoBehaviour
             case FirePattern.Radial:
                 return radialColor;
 
-            default:
-                return Color.white;
+            case FirePattern.Spiral:
+                return spiralColor;
+        }
+
+        return Color.white;
+    }
+
+    private void UpdateLineColors(
+        Color glowColor,
+        Color coreColor)
+    {
+        for (
+            int i = 0;
+            i < telegraphGlowLines.Count;
+            i++
+        )
+        {
+            if (
+                telegraphGlowLines[i] != null
+            )
+            {
+                telegraphGlowLines[i]
+                    .startColor =
+                    glowColor;
+
+                telegraphGlowLines[i]
+                    .endColor =
+                    glowColor;
+            }
+        }
+
+        for (
+            int i = 0;
+            i < telegraphCoreLines.Count;
+            i++
+        )
+        {
+            if (
+                telegraphCoreLines[i] != null
+            )
+            {
+                telegraphCoreLines[i]
+                    .startColor =
+                    coreColor;
+
+                telegraphCoreLines[i]
+                    .endColor =
+                    coreColor;
+            }
         }
     }
 
-    private Color GetTelegraphColor(FirePattern pattern)
+    private void UpdateRingColors(
+        Color glowColor,
+        Color coreColor)
     {
-        return GetPatternColor(pattern);
+        if (radialGlowRing != null)
+        {
+            radialGlowRing.startColor =
+                glowColor;
+
+            radialGlowRing.endColor =
+                glowColor;
+        }
+
+        if (radialCoreRing != null)
+        {
+            radialCoreRing.startColor =
+                coreColor;
+
+            radialCoreRing.endColor =
+                coreColor;
+        }
     }
 
-    private void ShowTelegraph(
-        FirePattern pattern,
-        List<Vector3> directions)
-    {
-        ClearTelegraph();
+    // =====================================================
+    // TELEGRAPH MATERIAL
+    // =====================================================
 
-        if (telegraphMaterial == null)
+    private void CreateTelegraphMaterial()
+    {
+        Shader shader =
+            Shader.Find(
+                "DodgeRush/NeonTelegraph"
+            );
+
+        if (shader == null)
+        {
+            shader =
+                Shader.Find(
+                    "Universal Render Pipeline/Unlit"
+                );
+        }
+
+        if (shader == null)
+        {
+            shader =
+                Shader.Find(
+                    "Sprites/Default"
+                );
+        }
+
+        if (shader == null)
             return;
 
-        Vector3 origin =
-            transform.position + Vector3.up * telegraphHeightOffset;
+        telegraphMaterial =
+            new Material(
+                shader
+            );
 
-        activeTelegraphColor = GetTelegraphColor(pattern);
+        telegraphMaterial.name =
+            "Runtime_NeonTelegraph";
 
-        switch (pattern)
+        if (
+            telegraphMaterial.HasProperty(
+                "_Intensity"
+            )
+        )
         {
-            case FirePattern.Single:
-                if (directions.Count > 0)
-                {
-                    CreateLine(
-                        origin,
-                        origin + directions[0] * singleTelegraphLength
-                    );
-                }
-                break;
-
-            case FirePattern.Spread:
-                foreach (Vector3 direction in directions)
-                {
-                    CreateLine(
-                        origin,
-                        origin + direction * spreadTelegraphLength
-                    );
-                }
-                break;
-
-            case FirePattern.Radial:
-                foreach (Vector3 direction in directions)
-                {
-                    CreateLine(
-                        origin,
-                        origin + direction * radialTelegraphLength
-                    );
-                }
-
-                if (showRadialRing)
-                    CreateCircle(origin, radialRingRadius);
-
-                break;
-        }
-
-        UpdateTelegraphPulse();
-    }
-
-    private void CreateLine(Vector3 start, Vector3 end)
-    {
-        TelegraphPair pair = CreateTelegraphPair("Telegraph_Line");
-
-        SetPairPositions(pair, new Vector3[] { start, end });
-        telegraphLines.Add(pair);
-    }
-
-    private void CreateCircle(Vector3 center, float radius)
-    {
-        TelegraphPair pair = CreateTelegraphPair("Telegraph_Ring");
-
-        int segments = Mathf.Max(16, ringSegments);
-        Vector3[] points = new Vector3[segments + 1];
-
-        for (int i = 0; i <= segments; i++)
-        {
-            float angle = (float)i / segments * Mathf.PI * 2f;
-
-            points[i] = center + new Vector3(
-                Mathf.Cos(angle) * radius,
-                0f,
-                Mathf.Sin(angle) * radius
+            telegraphMaterial.SetFloat(
+                "_Intensity",
+                glowIntensity
             );
         }
-
-        SetPairPositions(pair, points);
-        telegraphLines.Add(pair);
     }
 
-    private TelegraphPair CreateTelegraphPair(string objectName)
+    // =====================================================
+    // HIDE TELEGRAPH
+    // =====================================================
+
+    private void HideTelegraph()
     {
-        TelegraphPair pair = new TelegraphPair();
-
-        pair.glow = CreateLineRenderer(
-            objectName + "_Glow",
-            glowWidth
-        );
-
-        pair.core = CreateLineRenderer(
-            objectName + "_Core",
-            coreWidth
-        );
-
-        return pair;
-    }
-
-    private LineRenderer CreateLineRenderer(
-        string objectName,
-        float width)
-    {
-        GameObject lineObject = new GameObject(objectName);
-        lineObject.transform.SetParent(transform, true);
-
-        LineRenderer line = lineObject.AddComponent<LineRenderer>();
-
-        line.useWorldSpace = true;
-        line.positionCount = 2;
-        line.sharedMaterial = telegraphMaterial;
-        line.startWidth = width;
-        line.endWidth = width;
-        line.alignment = LineAlignment.View;
-        line.numCapVertices = 8;
-        line.numCornerVertices = 8;
-        line.shadowCastingMode = ShadowCastingMode.Off;
-        line.receiveShadows = false;
-
-        return line;
-    }
-
-    private void SetPairPositions(
-        TelegraphPair pair,
-        Vector3[] positions)
-    {
-        if (pair.glow != null)
+        for (
+            int i =
+                telegraphGlowLines.Count - 1;
+            i >= 0;
+            i--
+        )
         {
-            pair.glow.positionCount = positions.Length;
-            pair.glow.SetPositions(positions);
-        }
-
-        if (pair.core != null)
-        {
-            pair.core.positionCount = positions.Length;
-            pair.core.SetPositions(positions);
-        }
-    }
-
-    private void UpdateSingleTelegraph(Vector3 direction)
-    {
-        if (telegraphLines.Count == 0)
-            return;
-
-        Vector3 origin =
-            transform.position + Vector3.up * telegraphHeightOffset;
-
-        Vector3 end =
-            origin + direction * singleTelegraphLength;
-
-        SetPairPositions(
-            telegraphLines[0],
-            new Vector3[] { origin, end }
-        );
-    }
-
-    private void UpdateTelegraphPulse()
-    {
-        float pulse = Mathf.Lerp(
-            0.65f,
-            1.15f,
-            Mathf.PingPong(Time.time * blinkSpeed, 1f)
-        );
-
-        Color glow = activeTelegraphColor;
-        glow.a = Mathf.Clamp01(glowAlpha * pulse);
-
-        Color core = activeTelegraphColor;
-        core.a = Mathf.Clamp01(coreAlpha * pulse);
-
-        foreach (TelegraphPair pair in telegraphLines)
-        {
-            if (pair.glow != null)
+            if (
+                telegraphGlowLines[i] != null
+            )
             {
-                pair.glow.startColor = glow;
-                pair.glow.endColor = glow;
-            }
-
-            if (pair.core != null)
-            {
-                pair.core.startColor = core;
-                pair.core.endColor = core;
+                Destroy(
+                    telegraphGlowLines[i]
+                        .gameObject
+                );
             }
         }
-    }
 
-    private void ClearTelegraph()
-    {
-        foreach (TelegraphPair pair in telegraphLines)
+        for (
+            int i =
+                telegraphCoreLines.Count - 1;
+            i >= 0;
+            i--
+        )
         {
-            if (pair.glow != null)
-                Destroy(pair.glow.gameObject);
-
-            if (pair.core != null)
-                Destroy(pair.core.gameObject);
+            if (
+                telegraphCoreLines[i] != null
+            )
+            {
+                Destroy(
+                    telegraphCoreLines[i]
+                        .gameObject
+                );
+            }
         }
 
-        telegraphLines.Clear();
+        telegraphGlowLines.Clear();
+        telegraphCoreLines.Clear();
+
+        if (radialGlowRing != null)
+        {
+            Destroy(
+                radialGlowRing.gameObject
+            );
+
+            radialGlowRing =
+                null;
+        }
+
+        if (radialCoreRing != null)
+        {
+            Destroy(
+                radialCoreRing.gameObject
+            );
+
+            radialCoreRing =
+                null;
+        }
     }
 
-    private void FinishFiring()
-    {
-        ClearTelegraph();
-        isBusy = false;
-        fireRoutine = null;
-    }
+    // =====================================================
+    // PUBLIC CONTROL
+    // =====================================================
 
-    public void SetAutoFire(bool value)
+    public void SetAutoFire(
+        bool value)
     {
-        autoFire = value;
-        spawnTimer = 0f;
+        autoFire =
+            value;
+
+        autoFireTimer =
+            0f;
     }
 
     public FirePattern GetLastPattern()
@@ -705,26 +1519,19 @@ public class BulletSpawner : MonoBehaviour
         return lastPattern;
     }
 
-    private void OnDisable()
-    {
-        if (fireRoutine != null)
-        {
-            StopCoroutine(fireRoutine);
-            fireRoutine = null;
-        }
-
-        isBusy = false;
-        ClearTelegraph();
-    }
+    // =====================================================
+    // CLEANUP
+    // =====================================================
 
     private void OnDestroy()
     {
-        ClearTelegraph();
+        HideTelegraph();
 
         if (telegraphMaterial != null)
         {
-            Destroy(telegraphMaterial);
-            telegraphMaterial = null;
+            Destroy(
+                telegraphMaterial
+            );
         }
     }
 }

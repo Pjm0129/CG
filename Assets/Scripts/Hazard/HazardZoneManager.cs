@@ -4,6 +4,18 @@ using UnityEngine;
 
 public class HazardZoneManager : MonoBehaviour
 {
+    [System.Serializable]
+    public class DifficultySettings
+    {
+        [Header("Spawn Count")]
+        public int minSpawnCount = 1;
+        public int maxSpawnCount = 1;
+
+        [Header("Spawn Interval")]
+        public float minSpawnInterval = 6f;
+        public float maxSpawnInterval = 8f;
+    }
+
     [Header("References")]
     [SerializeField]
     private HazardZone hazardZonePrefab;
@@ -11,30 +23,53 @@ public class HazardZoneManager : MonoBehaviour
     [SerializeField]
     private Transform spawnPointRoot;
 
-    [Header("Spawn Settings")]
+    [Header("Level Difficulty")]
+    [SerializeField]
+    private List<DifficultySettings> levelDifficulties =
+        new List<DifficultySettings>()
+        {
+            new DifficultySettings
+            {
+                minSpawnCount = 1,
+                maxSpawnCount = 1,
+                minSpawnInterval = 6f,
+                maxSpawnInterval = 8f
+            },
+
+            new DifficultySettings
+            {
+                minSpawnCount = 1,
+                maxSpawnCount = 2,
+                minSpawnInterval = 4f,
+                maxSpawnInterval = 6f
+            },
+
+            new DifficultySettings
+            {
+                minSpawnCount = 2,
+                maxSpawnCount = 3,
+                minSpawnInterval = 3f,
+                maxSpawnInterval = 4.5f
+            }
+        };
+
+    [Header("Startup")]
     [SerializeField]
     private float startDelay = 5f;
 
+    [Header("Position")]
     [SerializeField]
-    private float minSpawnInterval = 4f;
-
-    [SerializeField]
-    private float maxSpawnInterval = 7f;
-
-    [SerializeField]
-    private int minSpawnCount = 1;
-
-    [SerializeField]
-    private int maxSpawnCount = 2;
-
-    [Header("Position Settings")]
-    [SerializeField]
-    private float spawnHeightOffset = 0.08f;
+    private float spawnHeightOffset = 0.2f;
 
     [Header("Player Safety")]
-    [Tooltip("플레이어 바로 밑에 위험지역이 생성되는 것을 방지")]
     [SerializeField]
     private float minimumPlayerDistance = 2f;
+
+    private int currentMinSpawnCount = 1;
+    private int currentMaxSpawnCount = 1;
+
+    private float currentMinSpawnInterval = 6f;
+    private float currentMaxSpawnInterval = 8f;
 
     private readonly List<Transform>
         spawnPoints =
@@ -44,6 +79,9 @@ public class HazardZoneManager : MonoBehaviour
 
     private Coroutine spawnRoutine;
 
+    // =====================================================
+    // UNITY
+    // =====================================================
 
     private void Start()
     {
@@ -51,12 +89,77 @@ public class HazardZoneManager : MonoBehaviour
 
         RegisterSpawnPoints();
 
-        spawnRoutine =
-            StartCoroutine(
-                SpawnRoutine()
-            );
+        ApplyLevelDifficulty(
+            1
+        );
+
+        StartSpawnRoutine();
     }
 
+    // =====================================================
+    // LEVEL DIFFICULTY
+    // =====================================================
+
+    public void ApplyLevelDifficulty(
+        int level)
+    {
+        if (
+            levelDifficulties == null ||
+            levelDifficulties.Count == 0
+        )
+        {
+            Debug.LogWarning(
+                "[HazardZoneManager] " +
+                "Level Difficulty 설정이 없습니다."
+            );
+
+            return;
+        }
+
+        int index =
+            Mathf.Clamp(
+                level - 1,
+                0,
+                levelDifficulties.Count - 1
+            );
+
+        DifficultySettings setting =
+            levelDifficulties[index];
+
+        currentMinSpawnCount =
+            Mathf.Max(
+                1,
+                setting.minSpawnCount
+            );
+
+        currentMaxSpawnCount =
+            Mathf.Max(
+                currentMinSpawnCount,
+                setting.maxSpawnCount
+            );
+
+        currentMinSpawnInterval =
+            Mathf.Max(
+                0.1f,
+                setting.minSpawnInterval
+            );
+
+        currentMaxSpawnInterval =
+            Mathf.Max(
+                currentMinSpawnInterval,
+                setting.maxSpawnInterval
+            );
+
+        Debug.Log(
+            $"[HazardZoneManager] LEVEL {level} 적용 / " +
+            $"Hazard {currentMinSpawnCount}~{currentMaxSpawnCount} / " +
+            $"Interval {currentMinSpawnInterval}~{currentMaxSpawnInterval}s"
+        );
+    }
+
+    // =====================================================
+    // PLAYER
+    // =====================================================
 
     private void FindPlayer()
     {
@@ -72,6 +175,9 @@ public class HazardZoneManager : MonoBehaviour
         }
     }
 
+    // =====================================================
+    // SPAWN POINT
+    // =====================================================
 
     private void RegisterSpawnPoints()
     {
@@ -80,7 +186,8 @@ public class HazardZoneManager : MonoBehaviour
         if (spawnPointRoot == null)
         {
             Debug.LogError(
-                "[HazardZoneManager] Spawn Point Root가 연결되지 않았습니다."
+                "[HazardZoneManager] " +
+                "Spawn Point Root가 없습니다."
             );
 
             return;
@@ -104,10 +211,29 @@ public class HazardZoneManager : MonoBehaviour
         }
 
         Debug.Log(
-            $"[HazardZoneManager] SpawnPoint {spawnPoints.Count}개 등록"
+            $"[HazardZoneManager] " +
+            $"SpawnPoint {spawnPoints.Count}개 등록"
         );
     }
 
+    // =====================================================
+    // ROUTINE
+    // =====================================================
+
+    private void StartSpawnRoutine()
+    {
+        if (spawnRoutine != null)
+        {
+            StopCoroutine(
+                spawnRoutine
+            );
+        }
+
+        spawnRoutine =
+            StartCoroutine(
+                SpawnRoutine()
+            );
+    }
 
     private IEnumerator SpawnRoutine()
     {
@@ -121,8 +247,8 @@ public class HazardZoneManager : MonoBehaviour
 
             float waitTime =
                 Random.Range(
-                    minSpawnInterval,
-                    maxSpawnInterval
+                    currentMinSpawnInterval,
+                    currentMaxSpawnInterval
                 );
 
             yield return new WaitForSeconds(
@@ -131,13 +257,17 @@ public class HazardZoneManager : MonoBehaviour
         }
     }
 
+    // =====================================================
+    // SPAWN WAVE
+    // =====================================================
 
     private void SpawnWave()
     {
         if (hazardZonePrefab == null)
         {
             Debug.LogWarning(
-                "[HazardZoneManager] HazardZone Prefab이 없습니다."
+                "[HazardZoneManager] " +
+                "HazardZone Prefab이 없습니다."
             );
 
             return;
@@ -146,34 +276,18 @@ public class HazardZoneManager : MonoBehaviour
         if (spawnPoints.Count == 0)
             return;
 
-        int minimum =
-            Mathf.Clamp(
-                minSpawnCount,
-                1,
-                spawnPoints.Count
-            );
-
-        int maximum =
-            Mathf.Clamp(
-                maxSpawnCount,
-                minimum,
-                spawnPoints.Count
-            );
-
-        int spawnCount =
-            Random.Range(
-                minimum,
-                maximum + 1
-            );
-
         List<Transform> available =
             new List<Transform>();
 
-        foreach (
-            Transform point
-            in spawnPoints
+        for (
+            int i = 0;
+            i < spawnPoints.Count;
+            i++
         )
         {
+            Transform point =
+                spawnPoints[i];
+
             if (
                 IsValidSpawnPoint(
                     point
@@ -186,19 +300,36 @@ public class HazardZoneManager : MonoBehaviour
             }
         }
 
+        if (available.Count == 0)
+            return;
+
         Shuffle(
             available
         );
 
-        int actualCount =
-            Mathf.Min(
-                spawnCount,
+        int minimum =
+            Mathf.Clamp(
+                currentMinSpawnCount,
+                1,
                 available.Count
+            );
+
+        int maximum =
+            Mathf.Clamp(
+                currentMaxSpawnCount,
+                minimum,
+                available.Count
+            );
+
+        int spawnCount =
+            Random.Range(
+                minimum,
+                maximum + 1
             );
 
         for (
             int i = 0;
-            i < actualCount;
+            i < spawnCount;
             i++
         )
         {
@@ -208,6 +339,9 @@ public class HazardZoneManager : MonoBehaviour
         }
     }
 
+    // =====================================================
+    // VALID POSITION
+    // =====================================================
 
     private bool IsValidSpawnPoint(
         Transform point)
@@ -242,6 +376,9 @@ public class HazardZoneManager : MonoBehaviour
             minimumPlayerDistance;
     }
 
+    // =====================================================
+    // SPAWN
+    // =====================================================
 
     private void SpawnHazard(
         Transform point)
@@ -258,6 +395,9 @@ public class HazardZoneManager : MonoBehaviour
         );
     }
 
+    // =====================================================
+    // SHUFFLE
+    // =====================================================
 
     private void Shuffle(
         List<Transform> list)
@@ -286,6 +426,9 @@ public class HazardZoneManager : MonoBehaviour
         }
     }
 
+    // =====================================================
+    // CLEANUP
+    // =====================================================
 
     private void OnDestroy()
     {
