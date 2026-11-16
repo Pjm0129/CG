@@ -13,7 +13,6 @@ public class MissionManager : MonoBehaviour
         [Header("Level")]
         public int requiredDevices = 3;
 
-        [Tooltip("이 레벨에서 Device를 모두 활성화해야 하는 제한시간")]
         public float timeLimit = 30f;
     }
 
@@ -41,6 +40,13 @@ public class MissionManager : MonoBehaviour
             }
         };
 
+    [Header("Difficulty Managers")]
+    [SerializeField]
+    private TurretFireManager turretFireManager;
+
+    [SerializeField]
+    private HazardZoneManager hazardZoneManager;
+
     [Header("Timeout Penalty")]
     [SerializeField]
     private int timeoutDamage = 1;
@@ -53,7 +59,6 @@ public class MissionManager : MonoBehaviour
     private float levelTransitionDuration = 1.5f;
 
     [Header("Exit Settings")]
-    [Tooltip("여러 포털을 자식으로 가지고 있는 ExitPoint 부모 오브젝트")]
     [SerializeField]
     private Transform exitPoint;
 
@@ -61,7 +66,6 @@ public class MissionManager : MonoBehaviour
     private float exitRadius = 2f;
 
     [Header("Device Settings")]
-    [Tooltip("비워두면 Scene에 있는 MissionDevice를 자동으로 찾습니다.")]
     [SerializeField]
     private List<MissionDevice> devices =
         new List<MissionDevice>();
@@ -99,7 +103,8 @@ public class MissionManager : MonoBehaviour
     // PUBLIC
     // =====================================================
 
-    public Transform PlayerTransform => transform;
+    public Transform PlayerTransform =>
+        transform;
 
     public bool CanActivateDevices =>
         !missionCleared &&
@@ -125,13 +130,38 @@ public class MissionManager : MonoBehaviour
         playerHealth =
             GetComponent<PlayerHealth>();
 
+        FindDifficultyManagers();
+
         SetupExitPortals();
 
         FindDevices();
 
         CreateMissionUI();
 
-        StartLevel(0);
+        StartLevel(
+            0
+        );
+    }
+
+    // =====================================================
+    // FIND MANAGERS
+    // =====================================================
+
+    private void FindDifficultyManagers()
+    {
+        if (turretFireManager == null)
+        {
+            turretFireManager =
+                FindFirstObjectByType
+                <TurretFireManager>();
+        }
+
+        if (hazardZoneManager == null)
+        {
+            hazardZoneManager =
+                FindFirstObjectByType
+                <HazardZoneManager>();
+        }
     }
 
     // =====================================================
@@ -185,59 +215,78 @@ public class MissionManager : MonoBehaviour
     }
 
     // =====================================================
-    // EXIT PORTAL SETUP
+    // START LEVEL
     // =====================================================
 
-    private void SetupExitPortals()
+    private void StartLevel(
+        int levelIndex)
     {
-        exitPortals.Clear();
-
-        activeExitPortal =
-            null;
-
-        if (exitPoint == null)
+        if (
+            levels == null ||
+            levels.Count == 0
+        )
         {
-            Debug.LogWarning(
-                "[MissionManager] ExitPoint가 연결되지 않았습니다."
+            Debug.LogError(
+                "[MissionManager] " +
+                "Level Settings가 없습니다."
             );
 
             return;
         }
 
-        // 부모는 활성화 상태로 유지
-        // 실제 포털 자식들만 꺼둔다.
-        exitPoint.gameObject.SetActive(
-            true
-        );
-
-        for (
-            int i = 0;
-            i < exitPoint.childCount;
-            i++
-        )
-        {
-            Transform portal =
-                exitPoint.GetChild(i);
-
-            if (portal == null)
-                continue;
-
-            exitPortals.Add(
-                portal
+        currentLevelIndex =
+            Mathf.Clamp(
+                levelIndex,
+                0,
+                levels.Count - 1
             );
 
-            portal.gameObject.SetActive(
-                false
-            );
-        }
+        activatedDevices =
+            0;
+
+        levelTimer =
+            0f;
+
+        completedDevices.Clear();
+
+        SelectDevicesForCurrentLevel();
+
+        ApplyDifficulty();
+
+        UpdateMissionUI();
 
         Debug.Log(
-            $"[MissionManager] Exit Portal {exitPortals.Count}개 등록"
+            $"[MissionManager] LEVEL {CurrentLevel} 시작 / " +
+            $"Devices {GetRequiredDeviceCount()} / " +
+            $"Time {GetCurrentTimeLimit()}초"
         );
     }
 
     // =====================================================
-    // FIND DEVICES
+    // DIFFICULTY
+    // =====================================================
+
+    private void ApplyDifficulty()
+    {
+        if (turretFireManager != null)
+        {
+            turretFireManager
+                .ApplyLevelDifficulty(
+                    CurrentLevel
+                );
+        }
+
+        if (hazardZoneManager != null)
+        {
+            hazardZoneManager
+                .ApplyLevelDifficulty(
+                    CurrentLevel
+                );
+        }
+    }
+
+    // =====================================================
+    // DEVICES
     // =====================================================
 
     private void FindDevices()
@@ -262,7 +311,8 @@ public class MissionManager : MonoBehaviour
         SetupDeviceReferences();
 
         Debug.Log(
-            $"[MissionManager] Device {devices.Count}개 발견"
+            $"[MissionManager] " +
+            $"Device {devices.Count}개 발견"
         );
     }
 
@@ -277,60 +327,12 @@ public class MissionManager : MonoBehaviour
             if (devices[i] == null)
                 continue;
 
-            devices[i].SetMissionManager(
-                this
-            );
+            devices[i]
+                .SetMissionManager(
+                    this
+                );
         }
     }
-
-    // =====================================================
-    // START LEVEL
-    // =====================================================
-
-    private void StartLevel(
-        int levelIndex)
-    {
-        if (
-            levels == null ||
-            levels.Count == 0
-        )
-        {
-            Debug.LogError(
-                "[MissionManager] Level Settings가 없습니다."
-            );
-
-            return;
-        }
-
-        currentLevelIndex =
-            Mathf.Clamp(
-                levelIndex,
-                0,
-                levels.Count - 1
-            );
-
-        activatedDevices =
-            0;
-
-        levelTimer =
-            0f;
-
-        completedDevices.Clear();
-
-        SelectDevicesForCurrentLevel();
-
-        UpdateMissionUI();
-
-        Debug.Log(
-            $"[MissionManager] LEVEL {CurrentLevel} 시작 / " +
-            $"Device {GetRequiredDeviceCount()}개 / " +
-            $"{GetCurrentTimeLimit()}초"
-        );
-    }
-
-    // =====================================================
-    // DEVICE SELECTION
-    // =====================================================
 
     private void SelectDevicesForCurrentLevel()
     {
@@ -362,7 +364,7 @@ public class MissionManager : MonoBehaviour
             );
         }
 
-        Shuffle(
+        ShuffleDevices(
             available
         );
 
@@ -371,18 +373,6 @@ public class MissionManager : MonoBehaviour
                 GetRequiredDeviceCount(),
                 available.Count
             );
-
-        if (
-            requiredCount <
-            GetRequiredDeviceCount()
-        )
-        {
-            Debug.LogWarning(
-                $"[MissionManager] 필요한 Device는 " +
-                $"{GetRequiredDeviceCount()}개이지만 " +
-                $"Scene에는 {available.Count}개만 있습니다."
-            );
-        }
 
         for (
             int i = 0;
@@ -406,10 +396,6 @@ public class MissionManager : MonoBehaviour
             }
         }
     }
-
-    // =====================================================
-    // DEVICE ACTIVATION
-    // =====================================================
 
     public void RegisterActivatedDevice(
         MissionDevice device)
@@ -441,12 +427,6 @@ public class MissionManager : MonoBehaviour
         }
 
         activatedDevices++;
-
-        Debug.Log(
-            $"[MissionManager] LEVEL {CurrentLevel} " +
-            $"Device {activatedDevices} / " +
-            $"{GetRequiredDeviceCount()}"
-        );
 
         if (
             activatedDevices >=
@@ -522,8 +502,6 @@ public class MissionManager : MonoBehaviour
         penaltyActive =
             true;
 
-        // 시간만 초기화
-        // 이미 활성화한 Device 진행도는 유지
         levelTimer =
             0f;
 
@@ -551,11 +529,6 @@ public class MissionManager : MonoBehaviour
             );
         }
 
-        Debug.Log(
-            $"[MissionManager] LEVEL {CurrentLevel} 시간 초과 / " +
-            $"HP -{timeoutDamage}"
-        );
-
         yield return new WaitForSeconds(
             penaltyMessageDuration
         );
@@ -567,8 +540,44 @@ public class MissionManager : MonoBehaviour
     }
 
     // =====================================================
-    // RANDOM EXIT
+    // EXIT
     // =====================================================
+
+    private void SetupExitPortals()
+    {
+        exitPortals.Clear();
+
+        activeExitPortal =
+            null;
+
+        if (exitPoint == null)
+            return;
+
+        exitPoint.gameObject.SetActive(
+            true
+        );
+
+        for (
+            int i = 0;
+            i < exitPoint.childCount;
+            i++
+        )
+        {
+            Transform portal =
+                exitPoint.GetChild(i);
+
+            if (portal == null)
+                continue;
+
+            exitPortals.Add(
+                portal
+            );
+
+            portal.gameObject.SetActive(
+                false
+            );
+        }
+    }
 
     private void OpenRandomExit()
     {
@@ -577,74 +586,49 @@ public class MissionManager : MonoBehaviour
 
         DisableAllDevices();
 
-        // 혹시 기존 포털이 켜져 있다면 모두 끔
         for (
             int i = 0;
             i < exitPortals.Count;
             i++
         )
         {
-            if (exitPortals[i] == null)
-                continue;
-
-            exitPortals[i]
-                .gameObject
-                .SetActive(false);
+            if (exitPortals[i] != null)
+            {
+                exitPortals[i]
+                    .gameObject
+                    .SetActive(false);
+            }
         }
 
         if (
             exitPortals.Count > 0
         )
         {
-            int randomIndex =
+            int index =
                 Random.Range(
                     0,
                     exitPortals.Count
                 );
 
             activeExitPortal =
-                exitPortals[randomIndex];
+                exitPortals[index];
 
             activeExitPortal
                 .gameObject
                 .SetActive(true);
-
-            Debug.Log(
-                $"[MissionManager] EXIT OPEN → " +
-                $"{activeExitPortal.name}"
-            );
         }
-        else if (
-            exitPoint != null
-        )
+        else if (exitPoint != null)
         {
-            // 자식 포털이 없는 경우
-            // 기존 방식으로 ExitPoint 자체 사용
             activeExitPortal =
                 exitPoint;
 
             exitPoint.gameObject.SetActive(
                 true
             );
-
-            Debug.LogWarning(
-                "[MissionManager] ExitPoint 자식 포털이 없어 " +
-                "ExitPoint 자체를 탈출 위치로 사용합니다."
-            );
-        }
-        else
-        {
-            Debug.LogError(
-                "[MissionManager] 사용할 Exit이 없습니다."
-            );
         }
 
         UpdateMissionUI();
     }
-
-    // =====================================================
-    // DISABLE DEVICES
-    // =====================================================
 
     private void DisableAllDevices()
     {
@@ -664,18 +648,10 @@ public class MissionManager : MonoBehaviour
         }
     }
 
-    // =====================================================
-    // CHECK EXIT
-    // =====================================================
-
     private void CheckExit()
     {
-        if (
-            activeExitPortal == null
-        )
-        {
+        if (activeExitPortal == null)
             return;
-        }
 
         Vector3 playerPosition =
             transform.position;
@@ -683,11 +659,8 @@ public class MissionManager : MonoBehaviour
         Vector3 exitPosition =
             activeExitPortal.position;
 
-        playerPosition.y =
-            0f;
-
-        exitPosition.y =
-            0f;
+        playerPosition.y = 0f;
+        exitPosition.y = 0f;
 
         float distance =
             Vector3.Distance(
@@ -706,10 +679,6 @@ public class MissionManager : MonoBehaviour
             ClearMission();
         }
     }
-
-    // =====================================================
-    // CLEAR MISSION
-    // =====================================================
 
     private void ClearMission()
     {
@@ -735,19 +704,11 @@ public class MissionManager : MonoBehaviour
     }
 
     // =====================================================
-    // LEVEL INFO
+    // LEVEL DATA
     // =====================================================
 
     private int GetRequiredDeviceCount()
     {
-        if (
-            levels == null ||
-            levels.Count == 0
-        )
-        {
-            return 0;
-        }
-
         return Mathf.Max(
             1,
             levels[currentLevelIndex]
@@ -757,14 +718,6 @@ public class MissionManager : MonoBehaviour
 
     private float GetCurrentTimeLimit()
     {
-        if (
-            levels == null ||
-            levels.Count == 0
-        )
-        {
-            return 30f;
-        }
-
         return Mathf.Max(
             1f,
             levels[currentLevelIndex]
@@ -809,9 +762,6 @@ public class MissionManager : MonoBehaviour
                 1080
             );
 
-        scaler.matchWidthOrHeight =
-            0.5f;
-
         GameObject panelObject =
             new GameObject(
                 "Mission Panel",
@@ -835,9 +785,6 @@ public class MissionManager : MonoBehaviour
                 0.09f,
                 0.9f
             );
-
-        panelImage.raycastTarget =
-            false;
 
         RectTransform panelRect =
             panelObject
@@ -902,9 +849,6 @@ public class MissionManager : MonoBehaviour
 
         missionText.color =
             Color.white;
-
-        missionText.raycastTarget =
-            false;
 
         RectTransform textRect =
             missionText.rectTransform;
@@ -976,10 +920,10 @@ public class MissionManager : MonoBehaviour
     }
 
     // =====================================================
-    // DEVICE SHUFFLE
+    // SHUFFLE
     // =====================================================
 
-    private void Shuffle(
+    private void ShuffleDevices(
         List<MissionDevice> list)
     {
         for (
@@ -989,7 +933,7 @@ public class MissionManager : MonoBehaviour
             i--
         )
         {
-            int randomIndex =
+            int index =
                 Random.Range(
                     0,
                     i + 1
@@ -999,9 +943,9 @@ public class MissionManager : MonoBehaviour
                 list[i];
 
             list[i] =
-                list[randomIndex];
+                list[index];
 
-            list[randomIndex] =
+            list[index] =
                 temp;
         }
     }
